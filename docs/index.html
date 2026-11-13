@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>公众号发布安全台 · Writer Guard — 写稿到发布，一个扩展全包</title>
+<meta name="description" content="给公众号小编用的合规工作台：Markdown 编辑台一键排版进公众号、红线词实时拦截、发布评分、专业封面设计器、后台数据自动回填。Windows + Chrome/Edge，3 分钟安装。">
+<meta name="theme-color" content="#151a3a">
+<link rel="icon" href="assets/icon.png">
+<style>
+  :root{
+    --ink:#0f172a; --ink2:#334155; --muted:#64748b; --line:#e6eaf2;
+    --bg:#ffffff; --bg2:#f6f7fb; --accent:#5b4bd6; --accent2:#8b7bf0;
+    --gold:#f0b429; --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font:16px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+  img{max-width:100%; display:block}
+  .wrap{max-width:1080px; margin:0 auto; padding:0 24px}
+
+  /* ---------- 顶栏 ---------- */
+  header{position:sticky; top:0; z-index:50; background:rgba(255,255,255,.9);
+    backdrop-filter:saturate(180%) blur(10px); border-bottom:1px solid var(--line)}
+  .nav{display:flex; align-items:center; gap:14px; height:62px}
+  .nav .logo{width:28px; height:28px; border-radius:8px}
+  .nav b{font-size:15.5px; letter-spacing:.2px}
+  .nav .links{margin-left:auto; display:flex; gap:22px; font-size:14.5px; color:var(--ink2)}
+  .nav .links a{color:inherit}
+  .nav .gh{display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:999px;
+    background:var(--ink); color:#fff; font-size:13.5px; font-weight:600}
+  .nav .gh:hover{background:#1e293b; text-decoration:none}
+  @media(max-width:760px){ .nav .links{display:none} }
+
+  /* ---------- Hero ---------- */
+  .hero{background:radial-gradient(1200px 420px at 78% -10%, #2a2a6b 0%, #151a3a 55%, #0d1229 100%);
+    color:#fff; padding:64px 0 72px; position:relative; overflow:hidden}
+  .hero::after{content:""; position:absolute; width:520px; height:520px; right:-160px; top:-200px;
+    border-radius:50%; border:1px solid rgba(180,176,255,.18)}
+  .hero .wrap{display:grid; grid-template-columns:1.05fr .95fr; gap:48px; align-items:center}
+  @media(max-width:900px){ .hero .wrap{grid-template-columns:1fr; gap:32px} }
+  .badge{display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
+    padding:6px 14px; border-radius:999px; background:rgba(255,255,255,.1); color:#d9d6ff;
+    border:1px solid rgba(255,255,255,.16)}
+  .hero h1{font-size:44px; line-height:1.28; margin:18px 0 14px; letter-spacing:-.5px}
+  .hero h1 em{font-style:normal; color:var(--gold)}
+  .hero p.lead{font-size:16.5px; color:#c9c6e8; margin:0 0 26px; max-width:520px}
+  .cta{display:flex; gap:12px; flex-wrap:wrap}
+  .btn{display:inline-flex; align-items:center; gap:8px; padding:13px 24px; border-radius:12px;
+    font-weight:700; font-size:15px; border:1px solid transparent; cursor:pointer}
+  .btn-main{background:#fff; color:#1b1f47}
+  .btn-main:hover{background:#f2f1ff; text-decoration:none}
+  .btn-ghost{background:rgba(255,255,255,.08); color:#fff; border-color:rgba(255,255,255,.22)}
+  .btn-ghost:hover{background:rgba(255,255,255,.16); text-decoration:none}
+  .hero .meta{margin-top:18px; font-size:13px; color:#9e9bc4}
+  .hero-shot{border-radius:14px; overflow:hidden; border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 30px 60px rgba(0,0,0,.42)}
+  @media(max-width:900px){ .hero h1{font-size:34px} }
+
+  /* ---------- 通用区块 ---------- */
+  section{padding:72px 0}
+  section.alt{background:var(--bg2)}
+  h2{font-size:29px; margin:0 0 10px; letter-spacing:-.3px}
+  .sub{color:var(--muted); margin:0 0 36px; font-size:15.5px}
+  .center{text-align:center}
+  .center .sub{margin-left:auto; margin-right:auto; max-width:640px}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:20px}
+  .grid2{display:grid; grid-template-columns:repeat(2,1fr); gap:20px}
+  @media(max-width:880px){ .grid3,.grid2{grid-template-columns:1fr} }
+
+  .card{background:#fff; border:1px solid var(--line); border-radius:var(--radius); padding:24px}
+  .card h3{margin:0 0 8px; font-size:17px}
+  .card p{margin:0; color:var(--ink2); font-size:14.8px}
+  .card .ico{width:38px; height:38px; border-radius:11px; display:grid; place-items:center;
+    background:#f1efff; color:var(--accent); font-size:18px; margin-bottom:14px}
+
+  .pain{display:flex; gap:12px; align-items:flex-start; padding:16px 18px; background:#fff;
+    border:1px solid var(--line); border-radius:12px; font-size:14.8px; color:var(--ink2)}
+  .pain b{color:var(--ink)}
+  .pain .tag{flex:0 0 auto; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px;
+    background:#fdecec; color:#c02d2d}
+
+  /* ---------- 截图 ---------- */
+  .shot{background:#fff; border:1px solid var(--line); border-radius:14px; overflow:hidden;
+    box-shadow:0 12px 30px rgba(15,23,42,.07)}
+  .shot img{width:100%}
+  .shot figcaption{padding:12px 16px; font-size:13.5px; color:var(--muted); border-top:1px solid var(--line)}
+
+  /* ---------- 安装步骤 ---------- */
+  .steps{counter-reset:s; display:grid; gap:16px; max-width:820px; margin:0 auto}
+  .step{display:grid; grid-template-columns:44px 1fr; gap:16px; background:#fff;
+    border:1px solid var(--line); border-radius:14px; padding:20px 22px}
+  .step::before{counter-increment:s; content:counter(s); width:34px; height:34px; border-radius:50%;
+    display:grid; place-items:center; background:var(--ink); color:#fff; font-weight:700; font-size:15px}
+  .step h3{margin:2px 0 6px; font-size:16px}
+  .step p{margin:0; color:var(--ink2); font-size:14.6px}
+  .kbd{display:inline-block; padding:1px 7px; border:1px solid #d7dced; border-bottom-width:2px;
+    border-radius:6px; background:#f8fafc; font-size:13px; font-family:ui-monospace,Consolas,monospace}
+
+  /* ---------- FAQ ---------- */
+  details{background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 20px; margin-bottom:12px}
+  details[open]{border-color:#cfc8f5}
+  summary{cursor:pointer; font-weight:600; font-size:15.4px; list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+"; display:inline-block; width:18px; color:var(--accent); font-weight:700}
+  details[open] summary::before{content:"–"}
+  details p{margin:10px 0 0 18px; color:var(--ink2); font-size:14.6px}
+
+  /* ---------- 页脚 ---------- */
+  footer{background:#0d1229; color:#9e9bc4; padding:48px 0 40px; font-size:13.6px}
+  footer a{color:#c9c6e8}
+  footer .cols{display:flex; gap:40px; flex-wrap:wrap; justify-content:space-between}
+  footer b{color:#fff; display:block; margin-bottom:8px; font-size:14px}
+  footer .legal{margin-top:28px; padding-top:20px; border-top:1px solid rgba(255,255,255,.1); line-height:1.9}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <img class="logo" src="assets/icon.png" alt="Writer Guard">
+    <b>公众号发布安全台</b>
+    <nav class="links">
+      <a href="#features">功能</a>
+      <a href="#shots">界面</a>
+      <a href="#install">安装</a>
+      <a href="#faq">常见问题</a>
+    </nav>
+    <a class="gh" id="repo-link" href="#" target="_blank" rel="noopener">GitHub 仓库</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <span class="badge">● Windows · Chrome / Edge 111+ · 本地运行</span>
+      <h1>写稿到发布<br><em>一个扩展</em>全包</h1>
+      <p class="lead">Markdown 写稿实时看排版、红线词当场标红、发文前跑一次发布评分、封面自己画、发布后数据自动回填。不用切五六个工具。</p>
+      <div class="cta">
+        <a class="btn btn-main" id="dl-link" href="#" target="_blank" rel="noopener">下载最新版 zip</a>
+        <a class="btn btn-ghost" href="#install">3 分钟安装步骤</a>
+      </div>
+      <p class="meta">数据全部留在你的电脑上，不上传任何服务器。</p>
+    </div>
+    <div class="hero-shot"><img src="assets/cover.png" alt="公众号发布安全台"></div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>公众号小编最耗时间的几件事，它都接了</h2>
+    <p class="sub">写、排、检、做图、看数据，一条链走完。</p>
+
+    <div class="grid3">
+      <div class="card">
+        <div class="ico">✍️</div>
+        <h3>编辑台：写 Markdown，直接出公众号排版</h3>
+        <p>右边实时渲染，还套真机手机壳预览。复制排版、写入已登录的公众号编辑器、推草稿箱，三条路任选。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🛡️</div>
+        <h3>检测台：发布评分 + AI 痕迹 + 红线命中</h3>
+        <p>每个命中的词标出在哪一句、为什么违规、换什么词。评分低于 80 或 AI 度高于 40，先改再发。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🎨</div>
+        <h3>封面设计器：画布级编辑，不糊不丢背景</h3>
+        <p>图层、版式模板、双击改字、对比度检测、白名单字体。导出一键复制，粘进公众号就是高清图。</p>
+      </div>
+      <div class="card">
+        <div class="ico">📊</div>
+        <h3>数据复盘：后台数据自动回填</h3>
+        <p>打开公众号内容分析页，点一次抓取，阅读、完读、在看自动进复盘看板，新文章新建、老文章更新。</p>
+      </div>
+      <div class="card">
+        <div class="ico">🤖</div>
+        <h3>AI 助手：没配 API 也能用</h3>
+        <p>起标题、写正文、改写选中、降 AI 味、生成摘要。没填 Key 时把提示词填进右侧内置豆包侧窗自动发送。</p>
+      </div>
+      <div class="card">
+        <div class="ico">📚</div>
+        <h3>台账与存证：出事有据可查</h3>
+        <p>素材授权台账、重复图预警、投诉看板 72 小时倒计时、申诉模板，截图标注与智录笔记一起打包。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="shots">
+  <div class="wrap">
+    <h2>界面长这样</h2>
+    <p class="sub">以下都是实际运行截图，没有渲染稿。</p>
+    <div class="grid2">
+      <figure class="shot">
+        <img src="assets/writer.jpg" alt="编辑台">
+        <figcaption>编辑台：左边 Markdown，右边手机壳里实时看公众号效果</figcaption>
+      </figure>
+      <figure class="shot">
+        <img src="assets/check.jpg" alt="检测台">
+        <figcaption>检测台：发布评分、AI 痕迹、红线命中，逐项给分</figcaption>
+      </figure>
+    </div>
+    <div style="margin-top:20px">
+      <figure class="shot">
+        <img src="assets/design.jpg" alt="封面设计器">
+        <figcaption>封面设计器：版式模板 + 图层编辑，导出 3 倍高清图</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2 class="center">3 分钟装好</h2>
+    <p class="sub center">不用应用商店，加载本地文件夹即可。升级时回扩展页点一下刷新圆圈，不用卸载重装。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div>
+          <h3>下载并解压</h3>
+          <p>到 GitHub Releases 下载最新 <span class="kbd">writer-guard-v*.zip</span>，解压到固定目录（别放在下载文件夹里随手删）。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>打开扩展管理页</h3>
+          <p>地址栏输入 <span class="kbd">edge://extensions</span>（Chrome 用 <span class="kbd">chrome://extensions</span>），打开右上角「开发者模式」。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>加载文件夹</h3>
+          <p>点「加载已解压的扩展程序」，选中解压出来的 writer-guard 文件夹。弹出欢迎页即安装成功。</p>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <h3>设定一次</h3>
+          <p>工作台 → 团队设置，填操作人名字、勾选内容品类，检测台会自动叠加该品类的专属红线。</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt" id="faq">
+  <div class="wrap">
+    <h2>常见问题</h2>
+    <p class="sub">装之前最常被问到的几件事。</p>
+
+    <details open>
+      <summary>会不会把我的稿子或后台数据传到服务器？</summary>
+      <p>不会。扩展在本地运行，数据存在浏览器本地存储里。只有你自己填了 AI 平台 Key 时，提示词才会发给你选的那家模型服务。</p>
+    </details>
+    <details>
+      <summary>支持哪些浏览器和系统？</summary>
+      <p>Windows 上的 Chrome 与 Edge，版本 111 以上（用到了较新的注入能力来读取后台接口数据）。macOS 未做完整验证。</p>
+    </details>
+    <details>
+      <summary>为什么不上架应用商店？</summary>
+      <p>内容是本地工作台，涉及读者自己的公众号后台，走开发者模式本地加载更透明：你可以逐行看源码，也能自己改。</p>
+    </details>
+    <details>
+      <summary>升级会不会丢数据？</summary>
+      <p>不会。用新版本覆盖原文件夹，回扩展页点刷新即可，本地草稿、台账、设置都保留。稳妥起见可先在团队设置里导出备份。</p>
+    </details>
+    <details>
+      <summary>它会不会帮我「绕过」平台规则？</summary>
+      <p>正好相反。它做的是拦截和提醒：红线词、侵权字体、重复图、AI 痕迹过重，都在发文前标出来让你改。不提供任何破解、刷量、规避审核的功能。</p>
+    </details>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <b>公众号发布安全台 · Writer Guard</b>
+        <div>给公众号小编用的本地合规工作台。</div>
+      </div>
+      <div>
+        <b>链接</b>
+        <div><a id="repo-link2" href="#" target="_blank" rel="noopener">GitHub 仓库</a></div>
+        <div><a id="dl-link2" href="#" target="_blank" rel="noopener">下载最新版</a></div>
+        <div><a href="#install">安装说明</a></div>
+      </div>
+      <div>
+        <b>说明</b>
+        <div>非微信官方产品，与腾讯无关。</div>
+        <div>本页仅介绍工具能力，不承诺任何流量或收益。</div>
+      </div>
+    </div>
+    <div class="legal">
+      © <span id="year">2026</span> Writer Guard · 保留所有权利（All rights reserved）。<br>
+      源码公开仅供查看与学习，未经书面许可不得复制、修改后再分发、商用或上架任何应用商店。<br>
+      使用本工具产生的任何内容责任由使用者自行承担，请遵守平台规则与著作权法。
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* 仓库坐标：用户名/仓库名。本站是该仓库的 /docs 目录（项目站，站点在 /writer-guard/ 子路径） */
+  var REPO = 'aiy51dev/writer-guard';
+  var RELEASES = 'https://github.com/' + REPO + '/releases';
+  document.getElementById('repo-link').href = 'https://github.com/' + REPO;
+  document.getElementById('repo-link2').href = 'https://github.com/' + REPO;
+  document.getElementById('dl-link').href = RELEASES + '/latest';
+  document.getElementById('dl-link2').href = RELEASES + '/latest';
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>

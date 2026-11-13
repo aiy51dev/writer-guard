@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>writer-test</title></head>
+<body><pre id="out">running...</pre>
+<script>
+window.addEventListener('error', function (ev) {
+  var pre = document.getElementById('out');
+  if (pre) {
+    pre.textContent = 'ERROR: ' + ev.message + '\n@ ' + ev.filename + ':' + ev.lineno + ':' + ev.colno
+      + '\n\n' + ((ev.error && ev.error.stack) || '(no stack)');
+  }
+});
+(function () {
+  var _oe = window.onerror;
+  window.onerror = function (m, s, l, c, e) {
+    var pre = document.getElementById('out');
+    if (pre) pre.textContent = 'ONERROR: ' + m + '\n@ ' + s + ':' + l + ':' + c + '\n\n' + ((e && e.stack) || '');
+    return false;
+  };
+})();
+</script><script src="../workbench/md2wx.js"></script>
+<script>
+(function () {
+  const M = window.WG.MD2WX;
+  const out = [];
+  let pass = 0, fail = 0;
+
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+
+  const md = [
+    '# 大标题',
+    '',
+    '==绿底== 和 ~~紫底~~ 还有 **加粗**。',
+    '',
+    '## 二级标题',
+    '',
+    '- 顶层 A',
+    '  - 嵌套 A1',
+    '- 顶层 B',
+    '',
+    '1. 甲',
+    '2. 乙',
+    '',
+    '> 引用一行',
+    '> 引用两行',
+    '',
+    '| 列一 | 列二 |',
+    '| --- | --- |',
+    '| a | b |',
+    '',
+    '```js',
+    'const x = 1 < 2;',
+    '```',
+    '',
+    '![说明文字](https://example.com/pic.png)',
+    '',
+    '[链接](https://mp.weixin.qq.com) 和 `code` 和分隔线',
+    '',
+    '---',
+    '',
+    '<' + 'script>alert(1)<' + '/script> 危险内容',
+  ].join('\n');
+
+  /* ---- 1. 六套主题都能渲染 ---- */
+  ok('主题数量为 6', M.THEMES.length === 6, String(M.THEMES.length));
+  let allOk = true;
+  M.THEMES.forEach((t) => {
+    const h = M.render(md, { theme: t.id });
+    if (!h || h.indexOf('<section') !== 0) allOk = false;
+  });
+  ok('六套主题渲染非空且以 section 包裹', allOk);
+
+  const html = M.render(md, { theme: 'ink' });
+
+  /* ---- 2. 高亮语法 ---- */
+  ok('绿底高亮', html.indexOf('#d7f5c4') >= 0);
+  ok('紫底标注', html.indexOf('#ede6ff') >= 0);
+  ok('加粗 strong', /<strong[^>]*>/.test(html));
+
+  /* ---- 3. 块级结构 ---- */
+  ok('H2 左竖条', html.indexOf('border-left:4px solid #2563eb') >= 0);
+  ok('有序列表', html.indexOf('<ol') >= 0);
+  ok('无序列表嵌套', /<ul[^>]*>[\s\S]*?<ul/.test(html));
+  ok('引用', html.indexOf('<blockquote') >= 0);
+  ok('表格', html.indexOf('<table') >= 0 && html.indexOf('<th') >= 0);
+  ok('代码块 pre', html.indexOf('<pre') >= 0);
+  ok('代码内 < 转义', html.indexOf('x = 1 &lt; 2') >= 0);
+  ok('独立图片带图注', html.indexOf('说明文字') >= 0);
+  ok('分割线 hr', html.indexOf('<hr') >= 0);
+  ok('链接带主题色', html.indexOf('border-bottom:1px solid #2563eb') >= 0);
+
+  /* ---- 4. 安全 ---- */
+  ok('script 被转义', html.indexOf('&lt;script&gt;') >= 0 && html.indexOf('<script>') < 0);
+  ok('javascript: 链接被挡', M.render('[x](javascript:alert(1))', {}).indexOf('href="#"') >= 0);
+
+  /* ---- 5. 样式全内联 ---- */
+  ok('无 class 依赖（全内联）', !/<(p|h1|h2|h3|ul|ol|li|table|blockquote)[^>]*\sclass=/.test(html));
+
+  /* ---- 6. 工具函数 ---- */
+  const st = M.stats(md);
+  ok('stats 有值', st.words > 0 && st.minutes >= 1, JSON.stringify(st));
+  ok('digest 截断含省略号', M.digest(md, 20).indexOf('…') >= 0);
+  ok('firstImage', M.firstImage(md) === 'https://example.com/pic.png', M.firstImage(md));
+  ok('plainText 去标记', M.plainText(md).indexOf('==') < 0 && M.plainText(md).indexOf('**') < 0);
+
+  /* ---- 7. 边界 ---- */
+  ok('空输入不炸', M.render('', {}).length > 0);
+  ok('undefined 不炸', M.render(null, {}).length > 0);
+  ok('未知主题回退', M.render('# t', { theme: 'nope' }).indexOf('<section') === 0);
+
+  out.unshift('writer-test  PASS ' + pass + ' / FAIL ' + fail);
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script></body></html>

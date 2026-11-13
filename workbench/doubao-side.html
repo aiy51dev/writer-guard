@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>豆包 · 侧窗</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #fff; overflow: hidden; }
+  body { font: 13px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: #334155; }
+  #frame { width: 100%; height: 100%; border: 0; display: block; background: #fff; }
+  #tip {
+    position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px;
+    align-items: center; justify-content: center; text-align: center; padding: 24px;
+    background: #fff; transition: opacity .2s ease;
+  }
+  #tip.is-off { opacity: 0; pointer-events: none; }
+  #tip b { font-size: 14px; color: #0f172a; }
+  #tip span { color: #64748b; font-size: 12.5px; }
+  #tip a { color: #2563eb; text-decoration: none; }
+  #tip a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<iframe id="frame" src="https://www.doubao.com/chat/" allow="clipboard-read; clipboard-write; microphone"></iframe>
+
+<div id="tip">
+  <b>正在打开豆包…</b>
+  <span>第一次加载要几秒，马上就好</span>
+  <a id="ext" href="https://www.doubao.com/chat/" target="_blank" rel="noopener">在新窗口打开豆包 →</a>
+</div>
+
+<!-- MV3 扩展页面禁止内联脚本（script-src 'self'），必须放外部文件，否则隐藏提示的
+     逻辑整个不执行，「正在打开豆包…」会永远盖在豆包上 -->
+<script src="doubao-side.js"></script>
+</body>
+</html>

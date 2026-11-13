@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>情绪导演 REDSkill | Emotion Director</title>
+<style>
+  :root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-card: #16161f;
+    --bg-input: #1a1a28;
+    --border: #252540;
+    --border-active: #6c3ce0;
+    --text-primary: #e0e0f0;
+    --text-secondary: #8888aa;
+    --text-dim: #555570;
+    --accent: #7c3aed;
+    --accent-glow: #a78bfa;
+    --accent-2: #06d6a0;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --quad-face: #ff6b9d;
+    --quad-body: #4ecdc4;
+    --quad-voice: #ffe66d;
+    --quad-word: #a78bfa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ambient grid */
+  body::before {
+    content: '';
+    position: fixed;
+    top:0; left:0; right:0; bottom:0;
+    background:
+      linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index:0;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 20px 60px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* header */
+  .header {
+    text-align: center;
+    padding: 32px 0 20px;
+    position: relative;
+  }
+  .header .logo {
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(135deg, #a78bfa, #7c3aed, #06d6a0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
+  }
+  .header .subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+  .header .divider {
+    width: 80px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    margin: 16px auto 0;
+    border-radius: 1px;
+  }
+
+  /* api config bar */
+  .api-config {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .api-config label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+  }
+  .api-config input {
+    flex: 1;
+    min-width: 280px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    transition: border-color 0.2s;
+  }
+  .api-config input:focus {
+    outline: none;
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+  }
+  .api-config .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .api-config .ai-src {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(6,214,160,0.4);
+    background: rgba(6,214,160,0.12);
+    color: var(--accent-2);
+    font-size: 10px;
+    letter-spacing: 0;
+    text-transform: none;
+    font-weight: 500;
+  }
+  .api-config .ai-src[hidden] { display: none; }
+  .status-dot.ok { background: var(--accent-2); box-shadow: 0 0 8px var(--accent-2); }
+  .status-dot.err { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+  .status-dot.idle { background: var(--text-dim); }
+
+  /* type selector */
+  .type-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .type-btn {
+    padding: 8px 18px;
+    font-size: 13px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .type-btn:hover {
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .type-btn.active {
+    background: rgba(124,58,237,0.15);
+    border-color: var(--accent);
+    color: var(--accent-glow);
+    box-shadow: 0 0 12px rgba(124,58,237,0.2);
+  }
+
+  /* main layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; }
+    .api-config { flex-direction: column; align-items: stretch; }
+  }
+
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+  }
+  .panel-badge {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(124,58,237,0.15);
+    color: var(--accent-glow);
+    letter-spacing: 0.5px;
+  }
+
+  textarea {
+    flex: 1;
+    min-height: 300px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    color: var(--text-primary);
+    font-size: 14px;
+    line-height: 1.7;
+    resize: vertical;
+    font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+    transition: border-color 0.2s;
+  }
+  textarea:focus {
+    outline: none;
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.1);
+  }
+  textarea.output-area {
+    background: var(--bg-secondary);
+    font-size: 13px;
+    cursor: default;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .btn {
+    padding: 11px 24px;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(124,58,237,0.3);
+  }
+  .btn-primary:hover:not(:disabled) {
+    box-shadow: 0 6px 28px rgba(124,58,237,0.45);
+    transform: translateY(-1px);
+  }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--text-primary);
+  }
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 6px;
+  }
+
+  /* loading */
+  .loading-indicator {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 0;
+    color: var(--accent-glow);
+    font-size: 13px;
+  }
+  .loading-indicator.active { display: flex; }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(124,58,237,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* quad preview */
+  .quad-section {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .quad-title {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .quad-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .quad-item {
+    background: var(--bg-input);
+    border-radius: 8px;
+    padding: 12px;
+    border-left: 3px solid transparent;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .quad-item.face  { border-left-color: var(--quad-face); }
+  .quad-item.body  { border-left-color: var(--quad-body); }
+  .quad-item.voice { border-left-color: var(--quad-voice); }
+  .quad-item.word  { border-left-color: var(--quad-word); }
+  .quad-item .ql {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .quad-item.face .ql  { color: var(--quad-face); }
+  .quad-item.body .ql  { color: var(--quad-body); }
+  .quad-item.voice .ql { color: var(--quad-voice); }
+  .quad-item.word .ql  { color: var(--quad-word); }
+
+  /* toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--bg-card);
+    border: 1px solid var(--accent-2);
+    color: var(--accent-2);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 999;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* analysis card */
+  .analysis-card {
+    margin-top: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+  }
+  .analysis-card h3 {
+    font-size: 15px;
+    color: var(--accent-glow);
+    margin-bottom: 14px;
+    letter-spacing: 1px;
+  }
+  .analysis-card table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .analysis-card th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--bg-input);
+    color: var(--accent-glow);
+    font-weight: 600;
+    border-radius: 6px 6px 0 0;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .analysis-card td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .analysis-card tr:last-child td { border-bottom: none; }
+  .badge-match { color: var(--accent-2); font-weight: 700; }
+  .badge-partial { color: var(--warn); font-weight: 700; }
+  .badge-weak { color: var(--danger); font-weight: 700; }
+
+  .score-ring {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    font-weight: 900;
+    font-size: 16px;
+    border: 3px solid;
+  }
+  .score-high { color: var(--accent-2); border-color: var(--accent-2); }
+  .score-mid  { color: var(--warn); border-color: var(--warn); }
+  .score-low  { color: var(--danger); border-color: var(--danger); }
+
+  .tip-box {
+    margin-top: 16px;
+    padding: 14px 18px;
+    background: rgba(124,58,237,0.06);
+    border: 1px solid rgba(124,58,237,0.2);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.8;
+  }
+
+  .footer {
+    text-align: center;
+    margin-top: 40px;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+  .footer a {
+    color: var(--accent-glow);
+    text-decoration: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- header -->
+  <div class="header">
+    <div class="logo">EMOTION DIRECTOR</div>
+    <div class="subtitle">情绪导演 REDSkill · 脸身声词四重奏</div>
+    <div class="divider"></div>
+  </div>
+
+  <!-- api config -->
+  <div class="api-config">
+    <label>Agnes API Key <span class="ai-src" id="aiSource" hidden></span></label>
+    <input type="password" id="apiKey" placeholder="留空则用工作台已配置的 API" autocomplete="off">
+    <div class="status-dot idle" id="statusDot" title="未验证"></div>
+    <button class="btn btn-sm btn-ghost" onclick="verifyKey()">验证连接</button>
+    <span style="font-size:11px;color:var(--text-dim);margin-left:auto;">
+      免费注册 → <a href="https://platform.agnes-ai.com" target="_blank" style="color:var(--accent-glow)">platform.agnes-ai.com</a>
+    </span>
+  </div>
+
+  <!-- type selector -->
+  <div class="type-selector">
+    <button class="type-btn active" data-type="storyboard">分镜脚本</button>
+    <button class="type-btn" data-type="outline">故事大纲</button>
+    <button class="type-btn" data-type="novel">小说剧情</button>
+    <button class="type-btn" data-type="voiceover">口播文案</button>
+  </div>
+
+  <!-- main grid -->
+  <div class="main-grid">
+    <!-- input -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">原始素材</span>
+        <span class="panel-badge" id="inputTypeLabel">分镜脚本</span>
+      </div>
+      <textarea id="inputText" placeholder="在这里粘贴你的分镜脚本、故事大纲、小说段落或口播文案...
+
+示例（分镜脚本）：
+场景：咖啡店内，黄昏
+角色：林晚（女，28岁，设计师），江辞（男，30岁，前男友）
+——林晚独自坐在角落，手指无意识地搅动冷掉的拿铁。门口风铃响起，江辞推门进来，两人目光相遇。林晚手指一紧，杯中的勺子滑落，发出清脆声响。"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="btnGenerate" onclick="generate()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l2.4 7.2h7.6l-6 4.8 2.4 7.2-6.4-4.8-6.4 4.8 2.4-7.2-6-4.8h7.6z"/></svg>
+          生成情绪导演词
+        </button>
+        <button class="btn btn-ghost" onclick="clearAll()">清空</button>
+      </div>
+      <div class="loading-indicator" id="loading">
+        <div class="spinner"></div>
+        <span>AI 导演正在分析情绪路线...</span>
+      </div>
+    </div>
+
+    <!-- output -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">情绪导演输出</span>
+        <span class="panel-badge" style="background:rgba(6,214,160,0.15);color:var(--accent-2);">四重奏</span>
+      </div>
+      <textarea id="outputText" class="output-area" readonly placeholder="点击「生成情绪导演词」后，AI 将在此输出：
+
+[导演词] 完整的导演阐述式分镜脚本
+[脸] 面部微表情时间线
+[身] 肢体动作物理细节
+[声] 语气语调呼吸节奏
+[词] 台词表达情绪递进
+
+包含精确到秒的情绪路线图..."></textarea>
+      <div class="btn-row">
+        <button class="btn btn-ghost btn-sm" onclick="copyOutput()">复制结果</button>
+        <button class="btn btn-ghost btn-sm" onclick="downloadOutput()">导出 TXT</button>
+      </div>
+      <!-- quad mini view -->
+      <div class="quad-section" id="quadView" style="display:none;">
+        <div class="quad-title">四重奏速览</div>
+        <div class="quad-grid" id="quadGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- analysis -->
+  <div class="analysis-card" id="analysisCard" style="display:none;">
+    <h3>[分析] 场景适配分析</h3>
+    <div id="analysisContent"></div>
+  </div>
+
+  <!-- tips -->
+  <div class="tip-box" id="tipBox">
+    <strong>使用说明</strong><br>
+    1. 直接点「生成」也行：Key 留空时会自动用工作台「设置 → AI 接口」里已经配好的那一套<br>
+    2. 想单独用自己的 Agnes Key，就在 <a href="https://platform.agnes-ai.com" target="_blank" style="color:var(--accent-glow)">platform.agnes-ai.com</a> 注册后粘进上面的输入框，盖过工作台配置<br>
+    3. 选择素材类型，粘贴原始内容<br>
+    4. 点击「生成」，AI 将输出完整的情绪路线图 + 四重奏分析<br>
+    5. 生成结果可直接用于小云雀AI / Seedance 等视频生成平台
+  </div>
+
+  <div class="footer">
+    Emotion Director REDSkill · Powered by Agnes-2.0-Flash · 开源 MIT
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- state ----
+let currentType = 'storyboard';
+const AGNES_BASE = 'https://apihub.agnes-ai.com/v1';
+const AGNES_MODEL = 'agnes-2.0-flash';
+let API_BASE = AGNES_BASE;
+let MODEL = AGNES_MODEL;
+
+/* ---------- API Key：本地留空时复用工作台里配好的那一套 ---------- */
+function teamAI() {
+  let t = null;
+  try { t = window.WG_TEAM_AI; } catch (e) { t = null; }
+  if (!t && typeof window.wgGetTeamAI === 'function') {
+    try { t = window.wgGetTeamAI(); } catch (e) { t = null; }
+  }
+  return (t && t.key && t.baseUrl && t.model) ? t : null;
+}
+
+/** 返回真正要用的接口：自己填了就用 Agnes，没填就用工作台配置 */
+function resolveAI() {
+  const typed = (document.getElementById('apiKey').value || '').trim();
+  if (typed) {
+    return { key: typed, baseUrl: AGNES_BASE, model: AGNES_MODEL, from: 'own' };
+  }
+  const t = teamAI();
+  if (t) {
+    return {
+      key: String(t.key).trim(),
+      baseUrl: String(t.baseUrl).replace(/\/+$/, ''),
+      model: String(t.model),
+      from: 'team'
+    };
+  }
+  return null;
+}
+
+function refreshAISource() {
+  const tag = document.getElementById('aiSource');
+  const input = document.getElementById('apiKey');
+  if (!tag) return;
+  const t = teamAI();
+  const typed = (input.value || '').trim();
+  if (typed) {
+    tag.hidden = true;
+    return;
+  }
+  if (t) {
+    tag.hidden = false;
+    tag.textContent = '已用工作台配置 · ' + t.model;
+    tag.title = t.baseUrl + ' · ' + t.model;
+  } else {
+    tag.hidden = true;
+  }
+}
+
+function onTeamAI() {
+  refreshAISource();
+}
+
+try { window.addEventListener('wg-ai', onTeamAI); } catch (e) { /* ignore */ }
+if (typeof window.wgOnTeamAI !== 'function') window.wgOnTeamAI = onTeamAI;
+
+/* 页面一进来、以及手输 Key 时，都刷一下「用谁的 API」提示 */
+document.getElementById('apiKey').addEventListener('input', refreshAISource);
+refreshAISource();
+setTimeout(refreshAISource, 600);
+setTimeout(refreshAISource, 1800);
+
+// ---- type selector ----
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+    document.getElementById('inputTypeLabel').textContent = btn.textContent;
+  });
+});
+
+// ---- verify key ----
+async function verifyKey() {
+  const ai = resolveAI();
+  const dot = document.getElementById('statusDot');
+  if (!ai) { showToast('请填写 API Key，或先在工作台「设置」里配好 API'); return; }
+
+  dot.className = 'status-dot idle';
+  try {
+    const resp = await fetch(`${ai.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ai.key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: ai.model,
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 5
+      })
+    });
+    if (resp.ok) {
+      dot.className = 'status-dot ok';
+      showToast(ai.from === 'team' ? '已接通工作台配置的 API [OK]' : 'API 连接成功 [OK]');
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      dot.className = 'status-dot err';
+      showToast(`验证失败: ${err.error?.message || resp.status}`);
+    }
+  } catch(e) {
+    dot.className = 'status-dot err';
+    showToast(`网络错误: ${e.message}`);
+  }
+}
+
+// ---- generate ----
+async function generate() {
+  const ai = resolveAI();
+  const input = document.getElementById('inputText').value.trim();
+  if (!ai) { showToast('请先填写 API Key，或在工作台「设置」里配好 API'); return; }
+  if (!input) { showToast('请先输入素材内容'); return; }
+
+  const btn = document.getElementById('btnGenerate');
+  const loader = document.getElementById('loading');
+  const output = document.getElementById('outputText');
+  btn.disabled = true;
+  loader.classList.add('active');
+  output.value = '';
+
+  const typeLabels = {
+    storyboard: '分镜脚本',
+    outline: '故事大纲',
+    novel: '小说剧情',
+    voiceover: '口播文案'
+  };
+
+  const systemPrompt = `你是"情绪导演"——一位精通AI视频生成的导演级提示词专家。你的核心方法论是"脸·身·声·词四重奏"，将笼统的情绪标签拆解为精确到秒的物理表演指令。
+
+## 核心原则
+1. 绝不使用"伤心""愤怒""开心"等情绪标签，必须用物理细节锚定情绪
+2. 情绪是动态变化过程，必须给出时间线（精确到秒）
+3. 脸（面部微表情）、身（肢体动作）、声（语气语调呼吸）、词（台词表达）四维同步
+4. 输出格式为导演阐述式分镜脚本，先交代视听环境，再精确控制表演
+
+## 输出结构
+每一段必须包含：
+- [视听环境] 背景音乐、环境音、光影色调、运镜手法
+- [时间线叙事] 0-N秒，每段精确描述
+- [四重奏标注] 每个动作标注属于 脸/身/声/词 哪个维度
+- [情绪递进弧线] 标注情绪强度变化曲线
+
+## 输出格式
+使用以下结构化格式：
+
+\`\`\`
+## [导演词] 情绪导演词 · [标题]
+
+### 视听环境
+- 背景音效：
+- 光影色调：
+- 运镜手法：
+
+### 时间线叙事
+
+#### [0-X秒] [阶段名称]
+- [脸] 面部：[面部微表情细节]
+- [身] 肢体：[肢体动作物理细节]
+- [声] 语气：[语气/语速/呼吸]
+- [词] 台词：[台词内容]（如有）
+
+...（重复每个时间阶段）
+
+### 情绪递进弧线
+[描述情绪从起点到高潮再到落点的完整变化曲线]
+\`\`\`
+
+请确保：每段不少于5个物理细节描述，时间线精确到秒，四重奏缺一不可。输出中不得使用任何emoji表情符号。`;
+
+  const userPrompt = `素材类型：${typeLabels[currentType]}
+原始内容：
+${input}
+
+请根据以上素材，生成完整的"情绪导演"导演阐述式分镜脚本，必须包含脸·身·声·词四重奏，时间线精确到秒，每个阶段至少有5个物理细节描述。`;
+
+  try {
+    const resp = await fetch(`${ai.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${ai.key}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: ai.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 4096
+      })
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+
+    const data = await resp.json();
+    const content = data.choices?.[0]?.message?.content || '';
+
+    if (!content) throw new Error('模型返回为空');
+
+    output.value = content;
+    parseQuadPreview(content);
+    showAnalysis(content);
+  } catch(e) {
+    output.value = `[生成失败] ${e.message}\n\n请检查：\n1. API Key 是否正确（留空时会用工作台里配的那套）\n2. 网络是否通畅\n3. 模型名是否可用（当前：${ai.model}）`;
+    showToast(`生成失败: ${e.message}`);
+  } finally {
+    btn.disabled = false;
+    loader.classList.remove('active');
+  }
+}
+
+// ---- quad preview ----
+function parseQuadPreview(text) {
+  const quadView = document.getElementById('quadView');
+  const quadGrid = document.getElementById('quadGrid');
+  const faceMatch = text.match(/\[脸\]\s*面部[：:]\s*(.+?)(?=\n(?=\[身\]|\[声\]|\[词\]|$)|$)/s) ||
+                    text.match(/\[脸\][：:]\s*(.+?)(?=\n(?=\[身\]|\[声\]|\[词\]|$)|$)/s);
+  const bodyMatch = text.match(/\[身\]\s*肢体[：:]\s*(.+?)(?=\n(?=\[脸\]|\[声\]|\[词\]|$)|$)/s) ||
+                    text.match(/\[身\][：:]\s*(.+?)(?=\n(?=\[脸\]|\[声\]|\[词\]|$)|$)/s);
+  const voiceMatch = text.match(/\[声\]\s*语气[：:]\s*(.+?)(?=\n(?=\[脸\]|\[身\]|\[词\]|$)|$)/s) ||
+                     text.match(/\[声\][：:]\s*(.+?)(?=\n(?=\[脸\]|\[身\]|\[词\]|$)|$)/s);
+  const wordMatch = text.match(/\[词\]\s*台词[：:]\s*(.+?)(?=\n(?=\[脸\]|\[身\]|\[声\]|$)|$)/s) ||
+                    text.match(/\[词\][：:]\s*(.+?)(?=\n(?=\[脸\]|\[身\]|\[声\]|$)|$)/s);
+
+  const hasAny = faceMatch || bodyMatch || voiceMatch || wordMatch;
+  if (!hasAny) { quadView.style.display = 'none'; return; }
+
+  quadView.style.display = 'block';
+  const items = [
+    { cls:'face',  label:'[脸] 面部',     text: faceMatch?.[1]?.trim().slice(0,120) || '—' },
+    { cls:'body',  label:'[身] 肢体',     text: bodyMatch?.[1]?.trim().slice(0,120) || '—' },
+    { cls:'voice', label:'[声] 语气',    text: voiceMatch?.[1]?.trim().slice(0,120) || '—' },
+    { cls:'word',  label:'[词] 台词',     text: wordMatch?.[1]?.trim().slice(0,120) || '—' }
+  ];
+  quadGrid.innerHTML = items.map(i =>
+    `<div class="quad-item ${i.cls}"><div class="ql">${i.label}</div>${escapeHtml(i.text)}</div>`
+  ).join('');
+}
+
+// ---- analysis ----
+function showAnalysis(text) {
+  const card = document.getElementById('analysisCard');
+  const content = document.getElementById('analysisContent');
+
+  const checks = [
+    { label: '四重奏完整性', key: 'quad', check: () => {
+      const face = /\[脸\]/.test(text);
+      const body = /\[身\]/.test(text);
+      const voice = /\[声\]/.test(text);
+      const word = /\[词\]/.test(text);
+      const count = [face,body,voice,word].filter(Boolean).length;
+      return { score: count * 25, detail: `${count}/4 维度覆盖`,
+        badge: count===4 ? 'badge-match' : count>=2 ? 'badge-partial' : 'badge-weak',
+        text: count===4 ? '完整四重奏' : count>=2 ? '部分覆盖' : '严重缺失' };
+    }},
+    { label: '物理细节密度', key: 'detail', check: () => {
+      const details = (text.match(/(颤抖|哆嗦|翕动|收缩|紧绷|松开|攥紧|滑落|起伏|吞咽|咬住|微张|紧闭|上扬|下垂|泛红|发白|出汗|干裂)/g) || []).length;
+      return { score: Math.min(details * 8, 100), detail: `${details} 个物理细节词`,
+        badge: details>=8 ? 'badge-match' : details>=4 ? 'badge-partial' : 'badge-weak',
+        text: details>=8 ? '高密度细节' : details>=4 ? '中等密度' : '细节不足' };
+    }},
+    { label: '时间线精确度', key: 'timeline', check: () => {
+      const hasSeconds = /\d+[-–]\d+秒/.test(text) || /\d+[-–]\d+s/.test(text) || /\[\d+[-–]\d+/.test(text);
+      return { score: hasSeconds ? 100 : 30, detail: hasSeconds ? '含秒级时间线' : '缺少精确时间标注',
+        badge: hasSeconds ? 'badge-match' : 'badge-weak',
+        text: hasSeconds ? '精确' : '模糊' };
+    }},
+    { label: '情绪递进弧线', key: 'arc', check: () => {
+      const hasArc = /情绪递进|情绪弧线|情绪.*变化|起点.*高潮|递进.*曲线/.test(text);
+      return { score: hasArc ? 100 : 40, detail: hasArc ? '明确情绪弧线' : '孤线不明确',
+        badge: hasArc ? 'badge-match' : 'badge-partial',
+        text: hasArc ? '完整弧线' : '待补充' };
+    }},
+    { label: '视听环境完整性', key: 'av', check: () => {
+      const hasSound = /背景音|环境音|音效|BGM|声音/.test(text);
+      const hasLight = /光影|色调|色温|布光|光线/.test(text);
+      const hasCamera = /运镜|镜头|景别|一镜到底|手持/.test(text);
+      const count = [hasSound,hasLight,hasCamera].filter(Boolean).length;
+      return { score: Math.round(count/3*100), detail: `${count}/3 项（音效/光影/运镜）`,
+        badge: count===3 ? 'badge-match' : count>=2 ? 'badge-partial' : 'badge-weak',
+        text: count===3 ? '完整' : count>=2 ? '基本完整' : '不完整' };
+    }}
+  ];
+
+  const scores = checks.map(c => ({ ...c, result: c.check() }));
+  const avg = Math.round(scores.reduce((a,b) => a + b.result.score, 0) / scores.length);
+  const avgBadge = avg >= 80 ? 'score-high' : avg >= 50 ? 'score-mid' : 'score-low';
+
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+      <div class="score-ring ${avgBadge}">${avg}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);">综合导演评分</div>
+        <div style="font-size:12px;color:var(--text-dim);">
+          ${avg >= 80 ? '优秀 · 可直接用于视频生成' : avg >= 50 ? '良好 · 稍作调整即可使用' : '基础 · 建议补充更多细节后重试'}
+        </div>
+      </div>
+    </div>
+    <table>
+      <tr><th>评估维度</th><th>得分</th><th>状态</th><th>详情</th></tr>
+      ${scores.map(s => `
+        <tr>
+          <td style="font-weight:600;">${s.label}</td>
+          <td><span class="score-ring ${s.result.score>=80?'score-high':s.result.score>=50?'score-mid':'score-low'}" style="width:36px;height:36px;font-size:13px;">${s.result.score}</span></td>
+          <td><span class="${s.result.badge}">${s.result.text}</span></td>
+          <td style="color:var(--text-secondary)">${s.result.detail}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+  card.style.display = 'block';
+}
+
+// ---- copy ----
+function copyOutput() {
+  const text = document.getElementById('outputText').value;
+  if (!text) { showToast('没有可复制的内容'); return; }
+  navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板 [OK]'));
+}
+
+// ---- download ----
+function downloadOutput() {
+  const text = document.getElementById('outputText').value;
+  if (!text) { showToast('没有可导出的内容'); return; }
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `情绪导演_${new Date().toISOString().slice(0,10)}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('已导出 TXT 文件 [OK]');
+}
+
+// ---- clear ----
+function clearAll() {
+  document.getElementById('inputText').value = '';
+  document.getElementById('outputText').value = '';
+  document.getElementById('quadView').style.display = 'none';
+  document.getElementById('analysisCard').style.display = 'none';
+}
+
+// ---- toast ----
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timeout);
+  t._timeout = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ---- escape ----
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+</script>
+</body>
+</html>

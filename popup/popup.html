@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>发布安全台</title>
+<style>
+  :root {
+    --brand: #1f6feb;
+    --line: #e5e7eb;
+    --text: #1f2328;
+    --text-2: #57606a;
+    --text-3: #8b949e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 300px;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: var(--text);
+    font: 13px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 14px 15px 12px;
+    border-bottom: 1px solid #f0f1f3;
+  }
+  .logo {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #1f6feb, #3b82f6);
+    color: #fff;
+    font: 700 11.5px/1 system-ui;
+    letter-spacing: .5px;
+  }
+  .head b { display: block; font-size: 13.5px; }
+  .head span { font-size: 10.5px; color: var(--text-3); }
+
+  .body { padding: 13px 15px 15px; }
+
+  .stat-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .stat {
+    flex: 1;
+    padding: 9px 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fafbfc;
+  }
+  .stat-label { font-size: 10px; color: var(--text-3); margin-bottom: 2px; }
+  .stat-value { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat-value small { font-size: 10px; font-weight: 500; color: var(--text-3); }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+    font: 500 12.5px/1 inherit;
+    cursor: pointer;
+    text-align: center;
+    transition: all .14s ease;
+  }
+  .btn:hover { background: #f6f8fa; }
+  .btn.primary {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+  }
+  .btn.primary:hover { background: #1a5fd0; }
+
+  .hint {
+    padding: 9px 11px;
+    border-radius: 7px;
+    background: #f0f6ff;
+    border: 1px solid #ddf4ff;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #0a5cd6;
+    margin-bottom: 10px;
+  }
+
+  .foot {
+    padding: 9px 15px 12px;
+    border-top: 1px solid #f0f1f3;
+    font-size: 10.5px;
+    color: var(--text-3);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div class="logo">WG</div>
+    <div>
+      <b>发布安全台</b>
+      <span>Writer Guard v1.0</span>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-label">上次发布评分</div>
+        <div class="stat-value" id="s-score">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">上次 AI 度</div>
+        <div class="stat-value" id="s-ai">—</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">红线命中</div>
+        <div class="stat-value" id="s-red">—</div>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">
+      在公众号编辑页打开时，右下角会出现「安全台」按钮，可实时检测。
+    </div>
+
+    <button class="btn primary" id="btn-open">打开工作台</button>
+    <button class="btn" id="btn-zhilu">智录笔记 · 视频转图文</button>
+    <button class="btn" id="btn-emotion">情绪导演 · 脸身声词</button>
+    <button class="btn" id="btn-scan-page">检测当前公众号页面</button>
+    <button class="btn" id="btn-panel">在页面内展开检测面板</button>
+  </div>
+
+  <div class="foot" id="foot">词库 v—</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

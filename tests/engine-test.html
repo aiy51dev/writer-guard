@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>engine-test</title></head>
+<body><pre id="out">running...</pre>
+<script>
+window.addEventListener('error', function (ev) {
+  var pre = document.getElementById('out');
+  if (pre) {
+    pre.textContent = 'ERROR: ' + ev.message + '\n@ ' + ev.filename + ':' + ev.lineno + ':' + ev.colno
+      + '\n\n' + ((ev.error && ev.error.stack) || '(no stack)');
+  }
+});
+(function () {
+  var _oe = window.onerror;
+  window.onerror = function (m, s, l, c, e) {
+    var pre = document.getElementById('out');
+    if (pre) pre.textContent = 'ONERROR: ' + m + '\n@ ' + s + ':' + l + ':' + c + '\n\n' + ((e && e.stack) || '');
+    return false;
+  };
+})();
+</script><script src="../data/dict.js"></script>
+<script src="../workbench/engine.js"></script>
+<script>
+(function () {
+  const E = window.WG.Engine;
+  const out = [];
+  let pass = 0, fail = 0;
+
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+
+  /* ---- 1. 红线：破解类 ---- */
+  const t1 = '这里提供一个破解版下载，附带激活码和注册机。';
+  const r1 = E.scanRedline(t1);
+  ok('检出破解类红线', r1.some((h) => h.groupId === 'crack' && h.level === 'block'),
+     JSON.stringify(r1.map((h) => h.word)));
+
+  /* ---- 2. 红线：网盘导流 ---- */
+  const t2 = '资源放在百度网盘，提取码 8888，后台回复「工具」获取。';
+  const r2 = E.scanRedline(t2);
+  ok('检出网盘导流', r2.some((h) => h.groupId === 'netdisk'), JSON.stringify(r2.map((h) => h.word)));
+
+  /* ---- 3. 红线：诱导互动 ---- */
+  const t3 = '觉得有用的话，记得点赞在看，帮忙转发给同事。';
+  const r3 = E.scanRedline(t3);
+  ok('检出诱导互动', r3.some((h) => h.groupId === 'induce'), JSON.stringify(r3.map((h) => h.word)));
+
+  /* ---- 4. 红线：标题党 ---- */
+  const t4 = '震惊！这个永久免费的工具绝了，全网首发手慢无';
+  const r4 = E.scanRedline(t4);
+  ok('检出标题党', r4.filter((h) => h.groupId === 'clickbait').length >= 3,
+     JSON.stringify(r4.map((h) => h.word)));
+
+  /* ---- 5. 干净文本不应误报 ---- */
+  const t5 = '我在 Windows 11 上测试了这款工具的免费版，导出速度比系统自带工具快一些。';
+  const r5 = E.scanRedline(t5);
+  ok('干净文本零误报', r5.length === 0, JSON.stringify(r5.map((h) => h.word)));
+
+  /* ---- 6. AI 痕迹：典型 AI 腔应高分 ---- */
+  const aiText = `首先，我们需要明确需求。其次，选择合适的工具。再次，进行对比。
+综上所述，这款软件赋能了我们的工作流，形成了完整闭环，实现了降本增效。
+值得一提的是，它的底层逻辑非常清晰，颗粒度也很细。
+随着科技的飞速发展，越来越多的人开始关注效率。众所周所，这非常重要。
+不仅提升了效率，而且优化了体验。具体来说，以下是三点建议。`;
+  const ai1 = E.scanAITrace(aiText);
+  ok('AI腔判为高分(>=40)', ai1.score >= 40, 'score=' + ai1.score + ' hits=' + ai1.totalHits);
+
+  /* ---- 7. AI 痕迹：真人腔应低分 ---- */
+  const humanText = `上周有份 80 页的 PDF 要转成表格。
+我试了 6 个工具。
+5 个在第三页就开始乱码。
+剩下那个能用，免费额度只够 20 页。烦。
+后来翻到一个开源项目，命令行跑的，配置花了四十分钟，但转完了，一个字没错。
+UI 丑得我差点卸载。但它现在是常驻工具。`;
+  const ai2 = E.scanAITrace(humanText);
+  ok('真人腔判为低分(<40)', ai2.score < 40,
+     'score=' + ai2.score + ' hits=' + ai2.totalHits + ' 句长σ=' + ai2.sentenceStd);
+
+  /* ---- 8. 句长方差确实有区分度 ---- */
+  ok('AI腔句长更均匀', ai1.sentenceStd < ai2.sentenceStd,
+     'ai=' + ai1.sentenceStd + ' human=' + ai2.sentenceStd);
+
+  /* ---- 9. 标题改写 ---- */
+  const cands = E.rewriteTitle('震惊！这个永久免费的效率神器绝了');
+  ok('标题改写生成候选', cands.length >= 3, 'got=' + cands.length);
+  ok('改写结果不含夸张词',
+     cands.every((c) => !/震惊|永久免费|绝了|史上最/.test(c.text)),
+     JSON.stringify(cands.map((c) => c.text)));
+  ok('改写结果长度合规',
+     cands.every((c) => c.text.length >= 10 && c.text.length <= 34),
+     JSON.stringify(cands.map((c) => c.text.length)));
+
+  /* ---- 10. 标题问题诊断 ---- */
+  const issues = E.detectTitleIssues('震惊！永久免费的工具');
+  ok('诊断出标题问题（夸张词 + 绝对化用语）',
+     issues.filter((i) => i.kind === '夸张词' || i.kind === '绝对化用语').length >= 2,
+     JSON.stringify(issues));
+
+  /* ---- 11. 字体检测 ---- */
+  const fonts = E.checkFonts('思源黑体\n方正兰亭黑\n微软雅黑\nMiSans');
+  ok('思源黑体判为可商用', fonts.find((f) => f.name === '思源黑体').status === 'allow');
+  ok('方正判为需授权', fonts.find((f) => f.name === '方正兰亭黑').status === 'deny');
+  ok('微软雅黑判为需授权', fonts.find((f) => f.name === '微软雅黑').status === 'deny');
+  ok('MiSans 判为可商用', fonts.find((f) => f.name === 'MiSans').status === 'allow');
+
+  /* ---- 12. 评分卡：违规稿应阻断 ---- */
+  const badTitle = '震惊！永久免费神器';
+  const badBody = '这里提供破解版，百度网盘提取码 8888，记得点赞在看。';
+  const rb = E.scanRedline(badTitle + '\n' + badBody);
+  const aiB = E.scanAITrace(badBody);
+  const scB = E.buildScore(badTitle, badBody, rb, aiB);
+  ok('违规稿触发阻断', scB.blockedNow === true, 'percent=' + scB.percent);
+
+  /* ---- 13. 评分卡：合规稿应通过 ---- */
+  const goodTitle = '我把文档转表格的工具换成了这个，实测三天';
+  const goodBody = `**测试环境**
+- 设备：Windows 11 23H2 / 16G
+- 软件版本：v2.1.0
+- 测试方式：真实工作场景
+
+上周有份 80 页 PDF 要转表格。
+试了 6 个，5 个在第三页乱码。
+
+**不适合谁**
+- 文件超过 500MB 会卡死
+- Mac 快捷键不一致
+
+你平时处理这类文件要花多久？`;
+  const rg = E.scanRedline(goodTitle + '\n' + goodBody);
+  const aiG = E.scanAITrace(goodBody);
+  const scG = E.buildScore(goodTitle, goodBody, rg, aiG);
+  ok('合规稿不阻断', scG.blockedNow === false,
+     'percent=' + scG.percent + ' fails=' + JSON.stringify(scG.checks.filter((c) => !c.pass).map((c) => c.id)));
+  ok('合规稿得分高于违规稿', scG.percent > scB.percent, scG.percent + ' vs ' + scB.percent);
+
+  /* ---- 14. 品类词库：办公 ---- */
+  const officeText = '这里教你 KMS 激活，还有 Office 365 拼车方案。';
+  const rNoCat = E.scanRedline(officeText);
+  const rOffice = E.scanRedline(officeText, ['office']);
+  ok('未选品类时办公违规不命中',
+     !rNoCat.some((h) => h.groupId === 'office-activate'),
+     JSON.stringify(rNoCat.map((h) => h.groupId)));
+  ok('选办公后命中 KMS 激活',
+     rOffice.some((h) => h.groupId === 'office-activate'),
+     JSON.stringify(rOffice.map((h) => h.word)));
+
+  /* ---- 15. 品类词库：设计 ---- */
+  const designText = '用 GenP 和 amtemu 破解 Adobe 全家桶。';
+  const rDesign = E.scanRedline(designText, ['design']);
+  ok('选设计后命中 Adobe 破解',
+     rDesign.some((h) => h.groupId === 'design-adobe'),
+     JSON.stringify(rDesign.map((h) => h.word)));
+
+  /* ---- 16. 品类词库：开发 ---- */
+  const devText = '用 ja-netfilter 和 license server 激活 JetBrains，Navicat 注册机也行。';
+  const rDev = E.scanRedline(devText, ['dev']);
+  ok('选开发后命中 JetBrains 破解',
+     rDev.some((h) => h.groupId === 'dev-jetbrains'),
+     JSON.stringify(rDev.map((h) => h.word)));
+  ok('选开发后命中 Navicat 破解',
+     rDev.some((h) => h.groupId === 'dev-crack-tools'),
+     JSON.stringify(rDev.map((h) => h.word)));
+
+  /* ---- 17. 品类叠加不影响通用规则 ---- */
+  const rBoth = E.scanRedline('这里提供破解版，还有 KMS 激活。', ['office']);
+  ok('品类叠加后通用规则仍生效',
+     rBoth.some((h) => h.groupId === 'crack'),
+     JSON.stringify(rBoth.map((h) => h.groupId)));
+  ok('多品类可同时生效',
+     E.scanRedline('KMS 激活 + GenP 破解', ['office', 'design']).length >= 2,
+     String(E.scanRedline('KMS 激活 + GenP 破解', ['office', 'design']).length));
+
+  /* ---- 18. 干净办公文本不误报 ---- */
+  const cleanOffice = 'WPS 免费版够用，Office 教育版可以用学校邮箱申请，学生认证走官网。';
+  const rCleanOffice = E.scanRedline(cleanOffice, ['office']);
+  ok('干净办公文本零误报', rCleanOffice.length === 0,
+     JSON.stringify(rCleanOffice.map((h) => h.word)));
+
+  /* ---- 19. 干净开发文本不误报 ---- */
+  const cleanDev = 'DBeaver 社区版免费，VS Code 开源，JetBrains 学生包可以用学校邮箱正规申请。';
+  const rCleanDev = E.scanRedline(cleanDev, ['dev']);
+  ok('干净开发文本零误报', rCleanDev.length === 0,
+     JSON.stringify(rCleanDev.map((h) => h.word)));
+
+  /* ---- 20. 规则库完整性 ---- */
+  const DICT = window.WG_DICT;
+  ok('三个品类都已注册',
+     ['office', 'design', 'dev'].every((c) => DICT.categoryRules[c]),
+     Object.keys(DICT.categoryRules || {}).join(','));
+  ok('getRules 能合并通用+品类',
+     DICT.getRules(['office']).length > DICT.getRules([]).length,
+     DICT.getRules(['office']).length + ' vs ' + DICT.getRules([]).length);
+  ok('品类规则数达标',
+     Object.values(DICT.categoryRules).reduce((s, c) => s + c.rules.length, 0) >= 15,
+     String(Object.values(DICT.categoryRules).reduce((s, c) => s + c.rules.length, 0)));
+
+  /* ---- 21. 替换词（新增） ---- */
+  const rSw = E.scanRedline('这里有破解版，还有百度网盘提取码，记得点赞在看');
+  ok('命中项带替换词', rSw.length > 0 && rSw.every((h) => typeof h.swap === 'string'),
+     JSON.stringify(rSw.map((h) => h.word + '->' + h.swap)));
+
+  const crackHit = rSw.find((h) => h.groupId === 'crack');
+  ok('破解版有替换词', !!crackHit && crackHit.swap === '官方免费版',
+     crackHit ? crackHit.swap : 'no hit');
+
+  const diskHit = rSw.find((h) => h.groupId === 'netdisk');
+  ok('网盘类有替换词', !!diskHit && !!diskHit.swap, diskHit ? diskHit.swap : 'no hit');
+
+  /* ---- 22. 新词库覆盖 ---- */
+  const rAd = E.scanRedline('这是全网最好的工具，国家级认证，100% 有效');
+  ok('广告法绝对化用语能命中', rAd.some((h) => h.groupId === 'adlaw'),
+     JSON.stringify(rAd.map((h) => h.word)));
+
+  const rMed = E.scanRedline('这款药能根治颈椎病，无副作用');
+  ok('医疗功效词能命中', rMed.some((h) => h.groupId === 'medical'),
+     JSON.stringify(rMed.map((h) => h.word)));
+
+  const rFin = E.scanRedline('跟着做稳赚不赔，零风险高回报');
+  ok('金融承诺词能命中', rFin.some((h) => h.groupId === 'finance'),
+     JSON.stringify(rFin.map((h) => h.word)));
+
+  const rEdu = E.scanRedline('七天精通，包就业，保过');
+  ok('教培承诺词能命中', rEdu.some((h) => h.groupId === 'edu'),
+     JSON.stringify(rEdu.map((h) => h.word)));
+
+  /* ---- 23. 词库规模 ---- */
+  ok('风险词库扩到 12 组', DICT.getRules([]).length === 12, String(DICT.getRules([]).length));
+  const totalPat = DICT.getRules([]).reduce((s, g) => s + g.patterns.length, 0);
+  ok('红线词条数 > 150', totalPat > 150, String(totalPat));
+
+  out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+  out.unshift('');
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script>
+</body></html>

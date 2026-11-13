@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>发布安全台 · 安装完成</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #f6f8fa;
+    color: #1f2328;
+    font: 14px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 56px 24px 80px; }
+  .hero { text-align: center; margin-bottom: 44px; }
+  .logo {
+    width: 62px; height: 62px;
+    margin: 0 auto 18px;
+    display: grid; place-items: center;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #1f6feb, #3b82f6);
+    color: #fff;
+    font: 700 22px/1 system-ui;
+    letter-spacing: .5px;
+    box-shadow: 0 8px 24px rgba(31, 111, 235, .28);
+  }
+  h1 { margin: 0 0 10px; font-size: 26px; font-weight: 700; letter-spacing: .3px; }
+  .sub { color: #57606a; font-size: 14px; }
+
+  .card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 26px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, .05);
+  }
+  h2 { margin: 0 0 14px; font-size: 15px; font-weight: 650; }
+
+  .step { display: flex; gap: 13px; margin-bottom: 16px; }
+  .step:last-child { margin-bottom: 0; }
+  .n {
+    flex: 0 0 auto;
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border-radius: 7px;
+    background: #f0f6ff;
+    color: #1f6feb;
+    font: 700 11.5px/1 ui-monospace, monospace;
+  }
+  .step b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+  .step p { margin: 0; font-size: 12.5px; color: #57606a; line-height: 1.75; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+  .mod { padding: 14px 15px; border: 1px solid #e5e7eb; border-radius: 9px; background: #fafbfc; }
+  .mod b { display: block; font-size: 13px; margin-bottom: 4px; }
+  .mod span { font-size: 12px; color: #57606a; line-height: 1.65; }
+
+  .btn {
+    display: inline-block;
+    padding: 11px 26px;
+    border: 0;
+    border-radius: 9px;
+    background: #1f6feb;
+    color: #fff;
+    font: 600 14px/1 inherit;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .btn:hover { background: #1a5fd0; }
+  .center { text-align: center; margin-top: 34px; }
+
+  .tip {
+    padding: 13px 16px;
+    border-radius: 9px;
+    background: #f0f6ff;
+    border: 1px solid #ddf4ff;
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #0a5cd6;
+  }
+  .tip b { color: #084daf; }
+  code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #f0f1f3;
+    font: 12px/1.6 ui-monospace, monospace;
+    color: #c9252d;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="logo">WG</div>
+    <h1>发布安全台已装好</h1>
+    <div class="sub">写稿时拦红线，发文前给评分，被投诉有台账</div>
+  </div>
+
+  <div class="card">
+    <h2>三步开始用</h2>
+    <div class="step">
+      <span class="n">1</span>
+      <div>
+        <b>打开公众号图文编辑页</b>
+        <p>登录 mp.weixin.qq.com，进入「图文消息」编辑界面。页面右下角会出现蓝色的「安全台」按钮。</p>
+      </div>
+    </div>
+    <div class="step">
+      <span class="n">2</span>
+      <div>
+        <b>边写边看提示</b>
+        <p>按钮颜色会随风险变化：绿色通过、黄色有优化项、红色有必删内容。点开能看到具体是哪个词、为什么、怎么改。</p>
+      </div>
+    </div>
+    <div class="step">
+      <span class="n">3</span>
+      <div>
+        <b>打开工作台做管理和归档</b>
+        <p>点浏览器工具栏的拼图图标，找到「公众号发布安全台」，点「打开工作台」。素材台账、模板库、截图标注都在里面。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>里面有这些</h2>
+    <div class="grid">
+      <div class="mod"><b>检测台</b><span>红线词 + AI 痕迹 + 九项评分，支持品类叠加</span></div>
+      <div class="mod"><b>品类词库</b><span>办公 / 设计 / 开发三套专属雷区，勾选即生效</span></div>
+      <div class="mod"><b>标题改写</b><span>把标题党改成信息型标题，给 6 个合规候选</span></div>
+      <div class="mod"><b>AI 治理</b><span>降低 AI 痕迹的七个手法，和合规边界说明</span></div>
+      <div class="mod"><b>字体自查</b><span>白名单可商用字体，黑名单需授权字体</span></div>
+      <div class="mod"><b>素材台账</b><span>每张图登记来源、凭证、到期日，投诉第一道证据</span></div>
+      <div class="mod"><b>重复图预警</b><span>感知哈希比对，同一张图反复用会报警</span></div>
+      <div class="mod"><b>模板库</b><span>测试环境段、反向结论、对比表、素材声明</span></div>
+      <div class="mod"><b>截图标注</b><span>箭头、矩形、文字、马赛克，顺手完成二次创作</span></div>
+      <div class="mod"><b>封面设计</b><span>专业画布：图层 / 逐字着色 / 对比度检测 / 8 模板 / 方案预设 / 字体商用 / 安全区</span></div>
+      <div class="mod"><b>软件选题库</b><span>测过的软件记一行，避免重复选题和重复踩坑</span></div>
+      <div class="mod"><b>投诉看板</b><span>72 小时申诉窗口倒计时，附完整申诉模板</span></div>
+      <div class="mod"><b>多平台改写</b><span>一次录制，生成小红书、知乎、B站、抖音四版</span></div>
+      <div class="mod"><b>数据复盘</b><span>从后台自动抓阅读和完读率，也能手动录入</span></div>
+      <div class="mod"><b>团队协作</b><span>CSV 台账互换 + 操作人 + 变更日志，多人不打架</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tip">
+      <p style="margin:0 0 8px"><b>两点使用提醒</b></p>
+      <p style="margin:0 0 6px">1. 数据全部存在你本机浏览器里，不上传任何服务器。换电脑前先用侧边栏的「导出备份」。</p>
+      <p style="margin:0">2. 词库在 <code>data/dict.js</code>，你想加自己的红线词或黑话，直接编辑这个文件后刷新扩展即可，不用重新打包。</p>
+    </div>
+  </div>
+
+  <div class="center">
+    <a class="btn" href="workbench/workbench.html">打开工作台</a>
+  </div>
+</div>
+</body>
+</html>

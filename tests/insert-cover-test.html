@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>insert-cover-test</title></head>
+<body>
+<pre id="testout">running...</pre>
+<script>
+window.chrome = {
+  runtime: { onMessage: { addListener: function(){} }, getURL: function(p){return p;}, sendMessage: function(){}, lastError: null },
+  storage: { local: { get: function(k,cb){ if(cb) cb({}); }, set: function(o,cb){ if(cb) cb(); }, remove: function(){} } }
+};
+try { localStorage.clear(); } catch(e) {}
+</script>
+
+<div id="host">
+  <div class="ProseMirror" contenteditable="true" style="min-height:80px">正文内容在这里。</div>
+</div>
+
+<script src="../data/dict.js"></script>
+<script src="../workbench/rewriter.js"></script>
+<script>
+window.addEventListener('error', function (ev) {
+  if (/ResizeObserver/i.test(ev.message || '')) return;
+  var pre = document.getElementById('testout');
+  if (pre && pre.textContent === 'running...') pre.textContent = 'ERROR: ' + ev.message + ' @' + (ev.filename||'').split('/').pop() + ':' + ev.lineno;
+});
+</script>
+<script src="../content/content.js"></script>
+
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+  function finish() {
+    out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+    out.unshift('');
+    document.getElementById('testout').textContent = out.join('\n');
+  }
+
+  /* 造一张 60x30 的 PNG，转成 ArrayBuffer */
+  function makePngBuffer() {
+    var cv = document.createElement('canvas');
+    cv.width = 60; cv.height = 30;
+    var ctx = cv.getContext('2d');
+    ctx.fillStyle = '#2563eb';
+    ctx.fillRect(0, 0, 60, 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('WG', 12, 21);
+    return new Promise(function (res) {
+      cv.toBlob(function (blob) {
+        var fr = new FileReader();
+        fr.onload = function () { res(fr.result); };   // 转 ArrayBuffer
+        fr.readAsArrayBuffer(blob);
+      }, 'image/png');
+    });
+  }
+
+  /* headless 禁用了 execCommand，这里打个桩让它真的插图，
+     用来验证「第二档降级」这条路径通不通 */
+  var origExec = document.execCommand.bind(document);
+  document.execCommand = function (cmd, ui, val) {
+    if (cmd === 'insertImage' && val) {
+      var ed0 = document.querySelector('.ProseMirror');
+      if (ed0) {
+        var img = document.createElement('img');
+        img.src = val;
+        ed0.appendChild(img);
+        return true;
+      }
+      return false;
+    }
+    return origExec(cmd, ui, val);
+  };
+
+  setTimeout(function () {
+    var fab = document.querySelector('.wg-fab:not(.wg-fab-cover)');
+    if (fab) fab.click();
+
+    /* 先确认 flash 可用，它依赖 ui 对象 */
+    setTimeout(function () {
+      if (window.__wgFlash) window.__wgFlash('探针提示');
+      setTimeout(function () {
+        var fl = document.querySelector('.wg-flash');
+        out.push('[诊断] flash 探针: ' + (fl ? ('[' + fl.textContent + ']') : 'none'));
+        out.push('[诊断] 面板 is-open: ' + (document.querySelector('.wg-panel') || {}).className);
+      }, 200);
+    }, 150);
+
+    setTimeout(function () {
+      var ed = document.querySelector('.ProseMirror');
+      ok('测试编辑器存在', !!ed);
+      var before = ed.querySelectorAll('img').length;
+      ok('初始没有图片', before === 0, String(before));
+
+      makePngBuffer().then(function (buf) {
+        /* 直接调内部函数，绕开消息层先验证插入逻辑本身 */
+        ok('测试钩子可用', typeof window.__wgInsertCover === 'function',
+           typeof window.__wgInsertCover);
+        var payload = { type: 'WG_INSERT_COVER', buffer: buf, mime: 'image/png', w: 60, h: 30 };
+        var p = window.__wgInsertCover ? window.__wgInsertCover(payload) : Promise.resolve();
+        p.catch(function (e) { out.push('[诊断] 插入抛错: ' + e.message); });
+
+        /* 轮询等待插入完成，比死等固定时间稳 */
+        var waited = 0;
+        var timer = setInterval(function () {
+          waited += 200;
+          if (ed.querySelectorAll('img').length > before || waited >= 6000) {
+            clearInterval(timer);
+            afterInsert();
+          }
+        }, 200);
+
+        function afterInsert() {
+          var imgs = ed.querySelectorAll('img');
+          var fl0 = document.querySelector('.wg-flash');
+          out.push('[诊断] flash: ' + (fl0 ? fl0.textContent : 'none'));
+          out.push('[诊断] 编辑器 innerHTML 长度: ' + ed.innerHTML.length);
+          ok('收到消息后插入了图片', imgs.length > before, 'img=' + imgs.length);
+          if (imgs.length) {
+            var src = imgs[0].getAttribute('src') || '';
+            ok('插入的是图片数据', src.indexOf('data:image') === 0 || src.indexOf('http') === 0, src.slice(0, 40));
+            ok('封面插在正文开头', ed.firstElementChild && ed.firstElementChild.tagName === 'IMG',
+               ed.innerHTML.slice(0, 60));
+          }
+
+          /* 找不到编辑器时应给提示 */
+          var oldEd = document.querySelector('.ProseMirror');
+          oldEd.remove();
+          window.postMessage({ type: 'WG_INSERT_COVER', buffer: buf, mime: 'image/png' }, '*');
+          setTimeout(function () {
+            var fl = document.querySelector('.wg-flash');
+            ok('找不到编辑器时给出提示', !!fl && fl.textContent.length > 0,
+               fl ? fl.textContent.slice(0, 40) : 'no flash');
+            finish();
+          }, 500);
+        }
+
+        setTimeout(afterInsert, 99999);
+      });
+    }, 300);
+  }, 600);
+})();
+</script>
+</body></html>

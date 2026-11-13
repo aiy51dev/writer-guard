@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>rewriter-test</title></head>
+<body><pre id="out">running...</pre>
+<script src="../data/dict.js"></script>
+<script src="../workbench/engine.js"></script>
+<script src="../workbench/rewriter.js"></script>
+<script>
+(function () {
+  const R = window.WG.Rewriter;
+  const E = window.WG.Engine;
+  const out = [];
+  let pass = 0, fail = 0;
+
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+
+  /* ---------- 1. 黑话替换 ---------- */
+  const t1 = '这套方案赋能了团队，形成了完整闭环，颗粒度很细，底层逻辑清晰。';
+  const r1 = R.rewrite(t1);
+  ok('黑话「赋能」换掉', r1.text.indexOf('赋能') < 0 && r1.text.indexOf('帮') >= 0, r1.text);
+  ok('黑话「闭环」换掉', r1.text.indexOf('闭环') < 0, r1.text);
+  ok('黑话「颗粒度」换掉', r1.text.indexOf('颗粒度') < 0, r1.text);
+  ok('黑话「底层逻辑」换掉', r1.text.indexOf('底层逻辑') < 0, r1.text);
+  ok('黑话替换有记录', r1.changes.filter(c => c.kind === 'buzz').length >= 4, String(r1.changes.length));
+
+  /* ---------- 2. 连接词删除 ---------- */
+  const t2 = '首先，我们需要明确需求。其次，选择合适的工具。再次，进行对比。';
+  const r2 = R.rewrite(t2);
+  ok('「首先」已删除', r2.text.indexOf('首先') < 0, r2.text);
+  ok('「其次」已删除', r2.text.indexOf('其次') < 0, r2.text);
+  ok('「再次」已删除', r2.text.indexOf('再次') < 0, r2.text);
+  ok('删除后不残留孤立逗号', !/[。！？]\s*，/.test(r2.text), r2.text);
+
+  /* ---------- 3. 空洞开场 ---------- */
+  const t3 = '众所周知，这个问题很重要。在这个信息爆炸的时代，我们要学会筛选。';
+  const r3 = R.rewrite(t3);
+  ok('「众所周知」已删除', r3.text.indexOf('众所周知') < 0, r3.text);
+  ok('「在这个…时代」已删除', r3.text.indexOf('信息爆炸') < 0, r3.text);
+
+  /* ---------- 4. 套话改写 ---------- */
+  const t4 = '综上所述，这是一款好工具。此外，它还很便宜。';
+  const r4 = R.rewrite(t4);
+  ok('「综上所述」改成「说白了」', r4.text.indexOf('说白了') >= 0, r4.text);
+  ok('「此外」改成「另外」', r4.text.indexOf('另外') >= 0, r4.text);
+
+  /* ---------- 5. 修饰词 ---------- */
+  const t5 = '这款软件非常强大，极大地提升了效率。';
+  const r5 = R.rewrite(t5);
+  ok('「非常强大」收紧', r5.text.indexOf('非常强大') < 0, r5.text);
+  ok('「极大地提升」收紧', r5.text.indexOf('极大地') < 0, r5.text);
+
+  /* ---------- 6. 统计 ---------- */
+  ok('统计了改动数量', r1.count > 0 && r1.count === r1.changes.length, String(r1.count));
+  const sum = R.summarize(r1.changes);
+  ok('分类统计可用', Object.keys(sum).length > 0, JSON.stringify(sum));
+  ok('字数统计正确',
+     r1.before === t1.replace(/\s/g, '').length && r1.after === r1.text.replace(/\s/g, '').length,
+     r1.before + ' -> ' + r1.after);
+  ok('saved 允许为负（白话比黑话长）', typeof r1.saved === 'number', String(r1.saved));
+
+  /* ---------- 7. 不破坏正常文本 ---------- */
+  const clean = '上周有份 80 页 PDF 要转表格。我试了 6 个工具，5 个在第三页乱码。剩下那个能用，但免费额度只够 20 页。';
+  const rc = R.rewrite(clean);
+  ok('正常文本不被改动', rc.text === clean, rc.text);
+  ok('正常文本改动数为 0', rc.count === 0, String(rc.count));
+
+  /* ---------- 8. 关键：改写后 AI 度必须下降 ---------- */
+  const aiText = '首先，我们需要明确需求。其次，选择合适的工具。再次，进行对比。\n\n'
+    + '综上所述，这款软件赋能了我们的工作流，形成了完整闭环，实现了降本增效。\n\n'
+    + '值得一提的是，它的底层逻辑非常清晰，颗粒度也很细。\n\n'
+    + '此外，它不仅提升了效率，而且优化了体验。具体来说，以下是三点建议。';
+  const beforeAI = E.scanAITrace(aiText);
+  const fixed = R.rewrite(aiText);
+  const afterAI = E.scanAITrace(fixed.text);
+
+  ok('改写前 AI 度偏高', beforeAI.score >= 40, 'before=' + beforeAI.score);
+  ok('改写后 AI 度下降', afterAI.score < beforeAI.score, beforeAI.score + ' -> ' + afterAI.score);
+  ok('改写后命中次数减少', afterAI.totalHits < beforeAI.totalHits, beforeAI.totalHits + ' -> ' + afterAI.totalHits);
+
+  /* ---------- 9. 幂等性：再改一次不应继续变化 ---------- */
+  const twice = R.rewrite(fixed.text);
+  ok('二次改写不再产生新改动', twice.count === 0 || twice.text === fixed.text, 'count=' + twice.count);
+
+  /* ---------- 10. 边界 ---------- */
+  ok('空字符串安全', R.rewrite('').count === 0);
+  ok('null 安全', R.rewrite(null).text === '');
+  ok('纯英文不受影响', R.rewrite('Hello world, this is a test.').text.indexOf('Hello') >= 0);
+
+  /* ---------- 11. 组合词不能被叠加替换（真实踩到的坑） ---------- */
+  const t11 = '形成了完整闭环，实现了降本增效，底层逻辑非常清晰，颗粒度也很细。';
+  const r11 = R.rewrite(t11);
+  ok('不出现「完整完整」重复', r11.text.indexOf('完整完整') < 0, r11.text);
+  ok('不出现「细很细 / 细也很细」重复', !/细很细|细也很细|细也非常细/.test(r11.text), r11.text);
+  ok('闭环已被完整换掉', r11.text.indexOf('闭环') < 0, r11.text);
+  ok('降本增效已换掉', r11.text.indexOf('降本增效') < 0, r11.text);
+  ok('组合句式读得通', r11.text.indexOf('完整流程') >= 0 && r11.text.indexOf('思路很清楚') >= 0, r11.text);
+
+  /* ---------- 12. 幂等（组合规则不来回抖） ---------- */
+  const r11b = R.rewrite(r11.text);
+  ok('组合改写后二次运行稳定', r11b.text === r11.text, r11b.text);
+
+  out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+  out.unshift('');
+  document.getElementById('out').textContent = out.join('\n');
+})();
+</script>
+</body></html>

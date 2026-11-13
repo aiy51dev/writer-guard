@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>技能面板自检</title>
+<style>
+  body { margin: 0; padding: 24px; font: 14px/1.6 system-ui, sans-serif; }
+  textarea { width: 640px; height: 110px; }
+  img { display: block; margin-top: 16px; }
+  pre { margin-top: 18px; padding: 12px; background: #f4f6fa; border-radius: 8px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+  <textarea id="chat-input" data-testid="chat_input_input" placeholder="输入消息"></textarea>
+  <div id="rich-input" contenteditable="true" style="width:600px;min-height:48px;border:1px solid #ccc"
+    data-testid="rich_fake"></div>
+  <img id="gen-img" width="420" height="240"
+    src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAEklEQVR4nGP8z8Dwn4GBgQEACyoCAqDtXpAAAAAASUVORK5CYII=">
+  <pre id="out">running…</pre>
+
+  <script src="../content/skills-data.js"></script>
+  <script src="../content/doubao.js"></script>
+  <script>
+    // 模拟 Lexical 类框架：只认 paste 事件管线，不认裸 DOM 改动
+    (function () {
+      var rich = document.getElementById('rich-input');
+      rich.addEventListener('paste', function (e) {
+        var t = e.clipboardData && e.clipboardData.getData('text/plain');
+        if (t) { document.execCommand('insertText', false, t); e.preventDefault(); }
+      });
+    })();
+  </script>
+  <script>
+    setTimeout(async () => {
+      const out = [];
+      const api = window.__wgSkillPanel;
+      out.push('api: ' + (api ? 'yes' : 'no'));
+      if (!api) { document.getElementById('out').textContent = out.join('\n'); return; }
+
+      const items = api.allItems();
+      const cats = {};
+      items.forEach((it) => { cats[it.cat] = (cats[it.cat] || 0) + 1; });
+      out.push('skills: ' + items.length + ' ' + JSON.stringify(cats));
+
+      const input = api.findChatInput();
+      out.push('chatInput: ' + (input ? 'found' : 'missing'));
+
+      const first = items[0];
+      await api.useSkill(first);
+      const ta = document.getElementById('chat-input');
+      out.push('inserted: ' + (ta.value.indexOf(first.text.slice(0, 10)) >= 0 ? 'yes' : 'no'));
+
+      const second = items.find((x) => x.cat === 'image');
+      await api.useSkill(second);
+      out.push('second: ' + (ta.value.indexOf(second.text.slice(0, 10)) >= 0 ? 'yes' : 'no'));
+
+      // 富文本路径：paste 事件管线（模拟 Lexical）
+      const rich = document.getElementById('rich-input');
+      const mode = await api.insertIntoInput(rich, '这是一段富文本插入测试内容占位');
+      out.push('richInsert: ' + (rich.textContent.indexOf('富文本插入测试') >= 0 ? 'yes(' + mode + ')' : 'no'));
+      out.push('richEditable: ' + (rich.textContent !== '' ? 'kept' : 'wiped'));
+
+      // shadow 面板挂载检查
+      const host = document.getElementById('wg-skill-host');
+      out.push('host: ' + (host && host.shadowRoot ? 'mounted' : 'missing'));
+
+      document.getElementById('out').textContent = out.join('\n');
+      // 截图用：把面板展开
+      if (api.setOpen) api.setOpen(true);
+    }, 700);
+  </script>
+</body>
+</html>

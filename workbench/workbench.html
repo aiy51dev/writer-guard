@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公众号发布安全台 · Writer Guard</title>
+<link rel="stylesheet" href="workbench.css">
+</head>
+<body>
+
+<!-- ========== 侧边栏 ========== -->
+<aside class="side">
+  <div class="side-brand">
+    <div class="side-logo">WG</div>
+    <div class="side-brand-text">
+      <b>发布安全台</b>
+      <span>Writer Guard v1.0</span>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <div class="side-group">内容生产</div>
+    <button class="nav-item is-on" data-view="writer"><i>1</i>编辑台</button>
+
+    <div class="side-group">视频 · 图文工具</div>
+    <button class="nav-item" data-view="cover"><i>12</i>封面设计<span class="nav-dot" id="nav-ai-dot" hidden title="AI 接口已连接 · Writer Guard"></span></button>
+    <button class="nav-item" data-view="zhilu"><i>16</i>智录笔记</button>
+    <button class="nav-item" data-view="emotion"><i>17</i>情绪导演</button>
+
+    <div class="side-group">合规拦截</div>
+    <button class="nav-item" data-view="compliance"><i>2</i>检测台</button>
+    <button class="nav-item" data-view="title"><i>3</i>标题改写</button>
+    <button class="nav-item" data-view="aigovern"><i>4</i>AI 治理</button>
+    <button class="nav-item" data-view="fonts"><i>5</i>字体自查</button>
+
+    <div class="side-group">资产管理</div>
+    <button class="nav-item" data-view="assets"><i>6</i>素材台账</button>
+    <button class="nav-item" data-view="dupimg"><i>7</i>重复图预警</button>
+
+    <div class="side-group">生产提效</div>
+    <button class="nav-item" data-view="templates"><i>8</i>模板库</button>
+    <button class="nav-item" data-view="annotate"><i>9</i>截图标注</button>
+    <button class="nav-item" data-view="software"><i>10</i>软件选题库</button>
+    <button class="nav-item" data-view="complaints"><i>11</i>投诉看板</button>
+
+    <div class="side-group">分发复盘</div>
+    <button class="nav-item" data-view="multiplatform"><i>13</i>多平台改写</button>
+    <button class="nav-item" data-view="analytics"><i>14</i>数据复盘</button>
+
+    <div class="side-group">协作</div>
+    <button class="nav-item" data-view="settings"><i>15</i>团队设置</button>
+  </nav>
+
+  <div class="side-foot">
+    <button class="side-btn" id="btn-export">导出备份</button>
+    <button class="side-btn" id="btn-import">导入备份</button>
+    <input type="file" id="file-import" accept="application/json" hidden>
+  </div>
+</aside>
+
+<!-- ========== 主区 ========== -->
+<main class="main">
+  <header class="topbar">
+    <h1 id="topbar-title">编辑台</h1>
+    <div class="topbar-right">
+      <button class="btn btn-sm" id="doubao-open" title="右侧展开豆包对话窗">豆包</button>
+      <span class="topbar-tip" id="topbar-tip">Markdown 写，本地排版，一键进公众号</span>
+    </div>
+  </header>
+
+  <!-- 豆包侧窗：内嵌对话，选中回答可一键回填编辑台 -->
+  <div class="db-drawer" id="doubao-drawer" hidden>
+    <div class="db-grip" id="db-grip" title="拖动调整宽度"></div>
+    <div class="db-head">
+      <span class="db-dot"></span>
+      <b>豆包</b>
+      <div class="card-actions">
+        <button class="btn btn-sm btn-ghost" id="doubao-close">收起</button>
+      </div>
+    </div>
+    <!-- 延迟加载：抽屉第一次打开才真的去加载豆包，避免工作台一启动就拖着它 -->
+    <iframe id="doubao-frame" title="豆包" data-src="https://www.doubao.com/chat/" allow="clipboard-read; clipboard-write"></iframe>
+  </div>
+
+  <div class="content" id="content">
+
+    <!-- ---------- 0. 编辑台 ---------- -->
+    <section class="view" data-view="writer">
+      <div class="card wgw-head">
+        <div class="wgw-head-fields">
+          <label class="field">
+            <span class="field-label">标题</span>
+            <input type="text" id="wgw-title" placeholder="文章标题，也是推送草稿的标题">
+          </label>
+          <label class="field">
+            <span class="field-label">作者</span>
+            <input type="text" id="wgw-author" placeholder="留空用绑定设置里的默认作者">
+          </label>
+        </div>
+      </div>
+
+      <div class="wgw-split"><div class="card wgw-pane">
+          <div class="card-head">
+            <h2>排版预览</h2>
+            <div class="card-actions">
+              <button class="btn btn-sm" id="wgw-copy-top" title="复制排版好的内容（带样式、图片、隐形字数），到公众号正文 Ctrl+V">复制</button>
+              <button class="btn btn-sm btn-primary" id="wgw-write" title="把排版结果写进公众号图文编辑器">写入编辑器</button>
+              <button class="btn btn-sm is-on" id="wgw-dev-phone">手机</button>
+              <button class="btn btn-sm btn-ghost" id="wgw-dev-wide">宽屏</button>
+            </div>
+          </div>
+
+          <div class="wgw-themes" id="wgw-themes"></div>
+
+          <div class="wgw-stage" id="wgw-stage">
+            <div class="wgw-phone" id="wgw-phone">
+              <div class="wgw-phone-screen">
+                <div class="wgw-statusbar">
+                  <span class="wgw-sb-time">9:41</span>
+                  <span class="wgw-sb-right">
+                    <svg viewBox="0 0 68 12" width="58" height="11" aria-hidden="true">
+                      <rect x="0" y="7" width="3" height="4" rx="1" fill="currentColor"/>
+                      <rect x="4.6" y="5" width="3" height="6" rx="1" fill="currentColor"/>
+                      <rect x="9.2" y="3" width="3" height="8" rx="1" fill="currentColor"/>
+                      <rect x="13.8" y="1" width="3" height="10" rx="1" fill="currentColor"/>
+                      <path d="M24 4.2a9 9 0 0 1 10 0M26.3 6.9a6 6 0 0 1 5.4 0" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+                      <circle cx="29" cy="9.6" r="1.1" fill="currentColor"/>
+                      <rect x="40" y="2" width="20" height="8" rx="2.4" stroke="currentColor" fill="none" stroke-width="1.1"/>
+                      <rect x="41.6" y="3.6" width="14" height="4.8" rx="1.4" fill="currentColor"/>
+                      <rect x="61.5" y="4.4" width="1.6" height="3.2" rx=".8" fill="currentColor"/>
+                    </svg>
+                  </span>
+                </div>
+                <div class="wgw-wxnbar">
+                  <span class="wgw-wx-back">‹</span>
+                  <span class="wgw-wx-app">公众号</span>
+                  <span class="wgw-wx-more">···</span>
+                </div>
+                <div class="wgw-wxscroll" id="wgw-wxscroll">
+                  <h1 class="wgw-wx-title" id="wgw-pv-title">文章标题</h1>
+                  <div class="wgw-wx-meta">
+                    <span class="wgw-wx-orig">原创</span>
+                    <span class="wgw-wx-author" id="wgw-pv-author">公众号</span>
+                    <span class="wgw-wx-date" id="wgw-pv-date"></span>
+                  </div>
+                  <div class="wgw-paper" id="wgw-preview"></div>
+                  <div class="wgw-wxfoot">
+                    <span>阅读 10万+</span>
+                    <span>在看 128</span>
+                    <span>赞 64</span>
+                  </div>
+                </div>
+                <div class="wgw-phone-bar"><i></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card wgw-pane">
+          <div class="card-head">
+            <h2>Markdown 正文</h2>
+            <div class="card-actions">
+              <button class="wgw-ai-dot" id="wgw-ai-dot" type="button" title="AI 未配置 · 点击去配置" aria-label="AI 配置"></button>
+              <button class="btn btn-sm btn-ghost" id="wgw-height" title="切换编辑区与预览区高度">高度·标准</button>
+              <button class="btn btn-sm" id="wgw-import">导入 .md</button>
+              <button class="btn btn-sm btn-ghost" id="wgw-clear">清空</button>
+              <input type="file" id="wgw-file" accept=".md,.markdown,.txt,text/markdown" hidden>
+            </div>
+          </div>
+
+          <div class="wgw-tools" id="wgw-tools">
+            <div class="wgw-tgroup" role="group" aria-label="文字样式">
+              <button class="wgw-tool" data-md="h2" title="二级标题（##）"><span class="ti">H2</span><span class="tl">标题</span></button>
+              <button class="wgw-tool" data-md="h3" title="三级标题（###）"><span class="ti">H3</span><span class="tl">小标题</span></button>
+              <button class="wgw-tool" data-md="bold" title="加粗（**文字**）"><span class="ti ti-b">B</span><span class="tl">加粗</span></button>
+              <button class="wgw-tool" data-md="green" title="绿底高亮（==文字==）"><span class="ti ti-green">==</span><span class="tl">绿底</span></button>
+              <button class="wgw-tool" data-md="purple" title="紫底标注（~~文字~~）"><span class="ti ti-purple">~~</span><span class="tl">紫底</span></button>
+            </div>
+            <div class="wgw-tgroup" role="group" aria-label="段落结构">
+              <button class="wgw-tool" data-md="quote" title="引用段落（> ）"><span class="ti ti-ico">❝</span><span class="tl">引用</span></button>
+              <button class="wgw-tool" data-md="ul" title="无序列表（- ）"><span class="ti ti-ico">•</span><span class="tl">列表</span></button>
+              <button class="wgw-tool" data-md="ol" title="有序列表（1. ）"><span class="ti ti-ico">1.</span><span class="tl">编号</span></button>
+              <button class="wgw-tool" data-md="hr" title="分隔线（---）"><span class="ti ti-ico">—</span><span class="tl">分隔</span></button>
+            </div>
+            <div class="wgw-tgroup" role="group" aria-label="插入">
+              <button class="wgw-tool" data-md="img" title="插入图片（![图注](https://)）"><span class="ti ti-ico">▣</span><span class="tl">图片</span></button>
+              <button class="wgw-tool" data-md="link" title="插入链接（[文字](https://)）"><span class="ti ti-ico">↗</span><span class="tl">链接</span></button>
+              <button class="wgw-tool" data-md="code" title="行内代码（`code`）"><span class="ti ti-ico">&lt;/&gt;</span><span class="tl">代码</span></button>
+            </div>
+          </div>
+
+          <div class="wgw-hpop" id="wgw-hpop" hidden>
+            <label>编辑区高度 <b id="wgw-hval">900</b> px</label>
+            <input type="range" id="wgw-hrange" min="560" max="1200" step="20" value="900">
+            <div class="acts"><button class="btn btn-sm" id="wgw-hdone">完成</button></div>
+          </div>
+
+          <textarea id="wgw-md" class="wgw-editor" spellcheck="false"
+            placeholder="在这里写 Markdown，或者把 .md 文件拖进来…"></textarea>
+
+          <div class="wgw-foot">
+            <div class="wgw-foot-left">
+              <span id="wgw-stats">0 字</span>
+              <span class="muted wgw-foot-hint">==绿底== · ~~紫底~~ · **加粗** · 表格 · 代码块</span>
+            </div>
+
+            <div class="wgw-aibar" id="wgw-aibar">
+              <span class="wgw-ai-label">AI</span>
+              <span class="wgw-ai-group">
+                <button class="btn btn-sm" data-ai="titles" title="根据正文要点出 6 个候选标题">起标题</button>
+                <button class="wgw-ai-toggle" id="wgw-ai-toggle" type="button"
+                        title="展开 / 收起候选标题" aria-expanded="false" hidden>▾</button>
+              </span>
+              <button class="btn btn-sm" data-ai="article" title="根据标题和要点生成 Markdown 正文">写正文</button>
+              <button class="btn btn-sm" data-ai="rewrite" title="改写选中的段落">改写选中</button>
+              <button class="btn btn-sm" data-ai="deai" title="整篇降 AI 痕迹">降 AI 味</button>
+              <button class="btn btn-sm" data-ai="digest" title="生成 80 字摘要填进摘要框">生成摘要</button>
+              <span class="muted wgw-ai-state" id="wgw-ai-state"></span>
+            </div>
+
+            <!-- 候选结果：绝对定位浮在正文尾部上方，展开不挤编辑区高度 -->
+            <div class="wgw-ai-out" id="wgw-ai-out"></div>
+          </div>
+        </div>
+
+        </div>
+
+      <div class="grid-2"><div class="card">
+          <div class="card-head">
+            <h2>本地草稿</h2>
+            <div class="card-actions">
+              <span class="pill" id="wgw-draft-count">0 篇</span>
+              <button class="btn btn-sm" id="wgw-save">存入草稿</button>
+            </div>
+          </div>
+          <div class="wgw-drafts" id="wgw-drafts"></div>
+          <div class="tipbox" style="margin-top:12px">
+            正文会边写边自动存一份（关掉标签页也不丢）；「存入草稿」是多版本存档，最多留 30 篇。
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>发布到公众号</h2>
+            <span class="pill" id="wgw-bind-state">未绑定</span>
+          </div>
+
+          <div class="wgw-cover">
+            <div class="wgw-cover-preview" id="wgw-cover-preview">
+              <span class="wgw-cover-empty">未选封面</span>
+            </div>
+            <div class="wgw-cover-side">
+              <div class="field-row" style="margin-bottom:8px">
+                <button class="btn btn-sm" id="wgw-cover-pick">上传封面</button>
+                <button class="btn btn-sm btn-ghost" id="wgw-cover-last">用设计器那张</button>
+                <button class="btn btn-sm btn-ghost" id="wgw-cover-clear">清除</button>
+                <input type="file" id="wgw-cover-file" accept="image/*" hidden>
+              </div>
+              <input type="text" id="wgw-cover-url" class="wgw-inline-input" placeholder="或填封面图片 URL（900×383 最佳）">
+              <div class="muted" id="wgw-cover-state" style="margin-top:6px">不选的话，优先用正文第一张图</div>
+            </div>
+          </div>
+
+          <label class="field" style="margin-top:14px">
+            <span class="field-label">摘要（不填自动截取开头 100 字）</span>
+            <input type="text" id="wgw-digest" placeholder="分享卡片上显示的那段话">
+          </label>
+
+          <div class="wgw-hidden">
+            <div class="field-row" style="margin-bottom:8px;align-items:center">
+              <b style="font-size:13px;color:var(--text)">隐形字数</b>
+              <span class="muted" id="wgw-hidden-count">读者看不到，但编辑器会计入字数</span>
+              <button class="btn btn-sm" id="wgw-hidden-go" style="margin-left:auto">确定 · 插入并复制</button>
+              <button class="btn btn-sm btn-ghost" id="wgw-hidden-clear">清空</button>
+            </div>
+            <textarea id="wgw-hidden" rows="3" class="wgw-inline-input" style="height:auto;resize:vertical"
+              placeholder="把要隐藏的文字直接粘进来（只存纯文本，代码不用管）"></textarea>
+            <div class="muted" id="wgw-hidden-state" style="margin-top:6px">点「确定」自动生成隐形代码：追加到公众号正文末尾 + 富文本复制到剪贴板</div>
+          </div>
+
+          <div class="wgw-deliver">
+            <div class="wgw-way">
+              <b>① 复制排版</b>
+              <span>富文本进剪贴板，粘到任何编辑器都带样式（隐形字数会一起带上）</span>
+              <button class="btn btn-sm" id="wgw-copy">复制</button>
+            </div>
+            <div class="wgw-way">
+              <b>② 写入编辑器</b>
+              <span>同款入口也放在「排版预览」右上角，排版完直接点</span>
+            </div>
+            <div class="wgw-way">
+              <b>③ 推送草稿箱</b>
+              <span>官方接口，需要 AppID / AppSecret（见团队设置）</span>
+              <button class="btn btn-sm" id="wgw-push">推送草稿箱</button>
+            </div>
+          </div>
+
+          <div class="wgw-pushmsg" id="wgw-push-msg"></div>
+
+          <div class="field-row" style="margin-top:12px">
+            <button class="btn btn-ghost btn-sm" id="wgw-scan">送进检测台跑红线</button>
+          </div>
+        </div>
+
+        </div>
+    </section>
+
+    <!-- ---------- 1. 检测台 ---------- -->
+    <section class="view is-hide" data-view="compliance">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h2>正文与标题</h2>
+            <div class="card-actions">
+              <button class="btn btn-sm" id="btn-paste-title">粘贴标题</button>
+              <button class="btn btn-sm" id="btn-paste-body">粘贴正文</button>
+              <button class="btn btn-sm btn-ghost" id="btn-clear-input">清空</button>
+            </div>
+          </div>
+          <div class="cat-bar" id="cat-bar">
+            <span class="cat-label">品类词库</span>
+            <button class="cat-chip" data-cat="office">办公效率</button>
+            <button class="cat-chip" data-cat="design">设计创作</button>
+            <button class="cat-chip" data-cat="dev">开发工具</button>
+            <span class="cat-hint" id="cat-hint">未选则只用通用规则</span>
+          </div>
+          <label class="field">
+            <span class="field-label">标题</span>
+            <input type="text" id="in-title" placeholder="把公众号标题粘在这里，或直接手打">
+          </label>
+          <label class="field">
+            <span class="field-label">正文</span>
+            <textarea id="in-body" rows="16" placeholder="把正文粘在这里。支持 Markdown 语境，检测只看文字内容。"></textarea>
+          </label>
+          <div class="field-row">
+            <button class="btn btn-primary" id="btn-scan">开始检测</button>
+            <button class="btn" id="btn-ai-fix">一键降 AI 味</button>
+            <button class="btn btn-ghost" id="btn-ai-undo" disabled>恢复原文</button>
+            <span class="muted" id="scan-meta">未检测</span>
+          </div>
+          <div id="ai-fix-result"></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2>发布评分</h2></div>
+            <div class="score-block">
+              <div class="score-ring" id="score-ring"><b id="score-num">--</b><small>分</small></div>
+              <div class="score-side">
+                <div class="score-verdict" id="score-verdict">等待检测</div>
+                <div class="score-sub" id="score-sub">填好内容后点「开始检测」</div>
+                <div class="score-chips" id="score-chips"></div>
+              </div>
+            </div>
+            <div class="checklist" id="checklist"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>AI 痕迹</h2></div>
+            <div class="aimeter" id="aimeter">
+              <div class="aimeter-top">
+                <span>AI 度</span>
+                <b id="ai-score">--</b>
+              </div>
+              <div class="bar" id="ai-bar"></div>
+              <div class="aimeter-metrics" id="ai-metrics"></div>
+              <div id="ai-short-hint"></div>
+            </div>
+            <div class="ai-groups" id="ai-groups"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>红线命中</h2>
+          <span class="pill" id="redline-count">0 处</span>
+        </div>
+        <div class="redline-list" id="redline-list"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 2. 标题改写 ---------- -->
+    <section class="view is-hide" data-view="title">
+      <div class="card">
+        <div class="card-head"><h2>标题合规改写器</h2></div>
+        <label class="field">
+          <span class="field-label">原始标题</span>
+          <input type="text" id="title-input" placeholder="例如：震惊！这个永久免费的效率神器绝了">
+        </label>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-rewrite">分析并改写</button>
+          <span class="muted">规则化改写，不调用外部接口</span>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>问题诊断</h2></div>
+          <div id="title-diagnose" class="empty">输入标题后点分析</div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>合规候选（点击复制）</h2></div>
+          <div id="title-suggest" class="empty">候选标题会出现在这里</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>标题改写规则</h2></div>
+        <div class="rule-grid">
+          <div class="rule"><b>去绝对化</b><span>「永久免费」→「免费版能覆盖 80% 日常需求」</span></div>
+          <div class="rule"><b>去惊叹</b><span>「震惊！」直接删，信息量放在后半句</span></div>
+          <div class="rule"><b>加限定</b><span>「最强」→「在 XX 场景下，我换成了主力」</span></div>
+          <div class="rule"><b>加场景</b><span>标题里出现一个具体场景词，点击率反而更高</span></div>
+          <div class="rule"><b>控制长度</b><span>公众号标题 16–26 字完读率最高</span></div>
+          <div class="rule"><b>不用感叹号</b><span>一个都不用。用句号或问号</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 3. AI 治理 ---------- -->
+    <section class="view is-hide" data-view="aigovern">
+      <div class="card">
+        <div class="card-head"><h2>为什么会被判「AI 生成」</h2></div>
+        <p class="para">平台识别 AI 内容不是靠单一特征，而是几个信号叠加：连接词密度、句式均匀度、黑话密度、段落长度方差、有没有不可伪造的真实经验。</p>
+        <p class="para">所以正解不是伪装，是<strong>把 AI 生成比例压下去，把真实经验密度提上来</strong>。这在平台规则内是允许且被鼓励的。</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>七个手法（按效果排序）</h2></div>
+        <div class="step-list">
+          <div class="step"><span class="step-n">1</span><div><b>删掉所有连接词</b><p>首先、其次、此外、综上所述、由此可见——这些是 AI 的骨架。删完段落靠事实自然衔接，机器味立刻掉一半。</p></div></div>
+          <div class="step"><span class="step-n">2</span><div><b>刻意打乱句长</b><p>AI 每句长度接近。做法：插一句 5 字以内的短句，再写一句 40 字以上的长句。句长标准差拉到 20 以上。</p></div></div>
+          <div class="step"><span class="step-n">3</span><div><b>塞进不可伪造的具体细节</b><p>设备型号、软件版本号、具体日期、第几步出错、错误提示原文。AI 编不出真实的报错信息。</p></div></div>
+          <div class="step"><span class="step-n">4</span><div><b>写失败和翻车</b><p>「我试了 6 个工具，5 个在第三页乱码」——真实经验一定包含失败。AI 只写成功路径。</p></div></div>
+          <div class="step"><span class="step-n">5</span><div><b>换掉黑话</b><p>赋能、闭环、抓手、颗粒度、底层逻辑——换成具体动作。「赋能」→「帮你少点三次鼠标」。</p></div></div>
+          <div class="step"><span class="step-n">6</span><div><b>段落长度不要均匀</b><p>AI 段落长度高度一致。做法：一段 2 行，下一段 8 行，再一段 1 行。</p></div></div>
+          <div class="step"><span class="step-n">7</span><div><b>加口语和自嘲</b><p>「说实话这个功能我是最后才发现」「UI 丑得我差点卸载」——AI 不会自嘲。</p></div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>合规边界（这条别踩）</h2></div>
+        <div class="warnbox">
+          <p>2025 年 9 月起施行的《人工智能生成合成内容标识办法》要求：AI 生成的内容需按规定标注。</p>
+          <p>务实做法：测试、截图、结论、踩坑全部自己完成，AI 只用于资料整理和排版。这样既不用强制标注，也不会有 AI 味。</p>
+          <p>如果你的稿子确实是 AI 主写的，<b>如实加一句辅助说明</b>比被平台识别出来的后果轻得多。模板库里有现成的一句话。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>AI 句式 → 真人句式 对照</h2></div>
+        <table class="table">
+          <thead><tr><th>AI 写法</th><th>真人写法</th></tr></thead>
+          <tbody>
+            <tr><td>首先，我们需要明确需求。其次，选择合适的工具。</td><td>我一开始连要做什么都没想清楚。翻了半小时论坛才定下来用哪个。</td></tr>
+            <tr><td>该软件具有强大的功能和极致的用户体验。</td><td>启动 1.2 秒，导出一张 4K 图 3 秒。但设置项藏在三级菜单里，我找了十分钟。</td></tr>
+            <tr><td>综上所述，这是一款值得推荐的效率工具。</td><td>我现在每天开它。但如果你的文件经常超过 500MB，别装，会卡死。</td></tr>
+            <tr><td>随着科技的发展，越来越多的人开始关注效率。</td><td>上周有份 80 页 PDF 要转表格，我试了 6 个工具。</td></tr>
+            <tr><td>它可以帮助你实现降本增效，形成业务闭环。</td><td>原来两个人做一天的活儿，现在一个人两小时。</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- 4. 字体自查 ---------- -->
+    <section class="view is-hide" data-view="fonts">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head">
+            <h2>白名单（可商用）</h2>
+            <span class="pill pill-good">放心用</span>
+          </div>
+          <div class="tag-cloud" id="font-allow"></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <h2>黑名单（需授权）</h2>
+            <span class="pill pill-bad">别用</span>
+          </div>
+          <div class="tag-cloud" id="font-deny"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>字体名检测</h2></div>
+        <label class="field">
+          <span class="field-label">把你作品里用到的字体名贴进来（一行一个，或从设计软件复制）</span>
+          <textarea id="font-input" rows="6" placeholder="思源黑体&#10;方正兰亭黑&#10;微软雅黑"></textarea>
+        </label>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-font-check">检测</button>
+        </div>
+        <div id="font-result" class="empty">检测结果会出现在这里</div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>字体侵权为什么最贵</h2></div>
+        <div class="para">
+          <p>图片里嵌的字体，扩展读不到，但权利方读得到。字体公司有成熟的爬虫和取证流程，公众号是最容易批量取证的场景，一封律师函索赔通常在几千到几万。</p>
+          <p>最容易被忽略的三个地方：<b>封面图</b>、<b>自制对比表</b>、<b>带文字的截图</b>。</p>
+          <p>保险做法：凡是自己输出带文字的图片，一律只用白名单字体，并在源文件里保留字体名可查。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 5. 素材台账 ---------- -->
+    <section class="view is-hide" data-view="assets">
+      <div class="card">
+        <div class="card-head">
+          <h2>新增素材记录</h2>
+          <span class="muted">每张图发之前登记一次，被投诉时这是你的第一道证据</span>
+        </div>
+        <div class="form-grid">
+          <label class="field"><span class="field-label">素材名称</span><input id="as-name" placeholder="封面图-第32期"></label>
+          <label class="field"><span class="field-label">来源类型</span>
+            <select id="as-source">
+              <option value="self">自截自录</option>
+              <option value="cc0">CC0 图库</option>
+              <option value="paid">付费商用授权</option>
+              <option value="ai">AI 生成</option>
+              <option value="official">官网素材</option>
+              <option value="other">其他（高风险）</option>
+            </select>
+          </label>
+          <label class="field"><span class="field-label">授权凭证 / 订单号</span><input id="as-proof" placeholder="订单号或截图文件名"></label>
+          <label class="field"><span class="field-label">授权到期日</span><input id="as-expire" type="date"></label>
+          <label class="field field-wide"><span class="field-label">用于哪篇文章</span><input id="as-article" placeholder="文章标题或期号"></label>
+          <label class="field field-wide"><span class="field-label">备注</span><input id="as-note" placeholder="例如：含商标，已裁掉 / 含他人水印已处理"></label>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-asset-add">登记</button>
+          <span class="muted" id="asset-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>台账</h2>
+          <div class="card-actions">
+            <input class="input-inline" id="asset-search" placeholder="搜索">
+            <span class="pill" id="asset-count">0 条</span>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="table" id="asset-table">
+          <thead><tr><th>素材</th><th>来源</th><th>凭证</th><th>到期</th><th>文章</th><th>状态</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ---------- 6. 重复图预警 ---------- -->
+    <section class="view is-hide" data-view="dupimg">
+      <div class="card">
+        <div class="card-head"><h2>图片指纹登记</h2></div>
+        <p class="para">把你用过的图片拖进来，扩展会算一个内容指纹存档。同一张图第二次出现、或和已登记素材高度相似时，这里会报警。</p>
+        <div class="dropzone" id="dup-drop">
+          <b>拖拽图片到这里</b>
+          <span>或点击选择文件（支持多选）</span>
+          <input type="file" id="dup-file" accept="image/*" multiple hidden>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-dup-check">比对已有库</button>
+          <span class="muted" id="dup-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>指纹库</h2>
+          <div class="card-actions"><span class="pill" id="dup-count">0 张</span><button class="btn btn-sm btn-ghost" id="btn-dup-clear">清空</button></div>
+        </div>
+        <div id="dup-list" class="thumb-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>重复图为什么危险</h2></div>
+        <div class="para">
+          <p>同一张图在多个号、多篇文章里反复出现，是平台判定「内容农场 / 矩阵号」的强信号，直接影响推荐。</p>
+          <p>更麻烦的是，如果你从别人的文章里存了一张图再用，原作者用图片搜索一抓就是一片。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 7. 模板库 ---------- -->
+    <section class="view is-hide" data-view="templates">
+      <div class="card">
+        <div class="card-head">
+          <h2>模板库</h2>
+          <span class="muted">点「复制」贴到编辑器，点「插入检测台」直接进检测</span>
+        </div>
+        <div id="template-list" class="template-list"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 8. 截图标注 ---------- -->
+    <section class="view is-hide" data-view="annotate">
+      <div class="an-layout">
+        <div class="an-main">
+          <div class="card">
+            <div class="card-head">
+              <h2>截图标注</h2>
+              <span class="muted">滚轮放大看细节 · 中键/空格拖动 · 双击回 100%</span>
+            </div>
+
+            <div class="field-row">
+              <input type="file" id="an-file" accept="image/*" hidden>
+              <button class="btn btn-primary" id="btn-an-open">选择图片</button>
+              <span class="sep">|</span>
+              <button class="btn btn-sm tool-btn" data-tool="select" title="选择并拖动已画的图形（也可 Alt+拖动）">✥ 移动</button>
+              <button class="btn btn-sm tool-btn is-on" data-tool="arrow" title="箭头">箭头</button>
+              <button class="btn btn-sm tool-btn" data-tool="rect" title="矩形框">矩形</button>
+              <button class="btn btn-sm tool-btn" data-tool="text" title="文字">文字</button>
+              <button class="btn btn-sm tool-btn" data-tool="mosaic" title="马赛克">马赛克</button>
+              <span class="sep">|</span>
+              <input type="color" id="an-color" value="#e5484d" class="color-pick" title="标注颜色">
+              <input type="range" id="an-width" min="1" max="12" value="3" class="range-pick" title="线宽">
+              <span class="sep">|</span>
+              <button class="btn btn-sm" id="btn-an-undo">撤销</button>
+              <button class="btn btn-sm btn-ghost" id="btn-an-clear">清空</button>
+            </div>
+
+            <div class="an-zoombar">
+              <button class="an-zbtn" id="btn-an-zoom-out" title="缩小">−</button>
+              <button class="an-zbtn an-zval" id="btn-an-zoom-reset" title="点击回到 100%">100%</button>
+              <button class="an-zbtn" id="btn-an-zoom-in" title="放大">+</button>
+              <button class="an-zbtn" id="btn-an-fit" title="适配窗口">适配</button>
+              <span class="an-hint">滚轮缩放 · 中键/空格拖动 · 双击切换 · 移动工具下拖图形可挪位置</span>
+              <span class="an-spacer"></span>
+              <button class="btn btn-sm" id="btn-an-save">导出 PNG</button>
+              <button class="btn btn-sm btn-ghost" id="btn-an-save-jpg">导出 JPG</button>
+            </div>
+
+            <div class="an-stage-wrap">
+              <div class="an-stage" id="an-stage">
+                <div class="empty" id="an-empty">选择一张截图开始标注</div>
+                <canvas id="an-canvas" class="is-hide"></canvas>
+              </div>
+              <div class="an-hud" id="an-hud"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="an-side">
+          <div class="card">
+            <div class="an-tabs">
+              <button class="an-tab is-on" data-tab="finger">原创指纹</button>
+              <button class="an-tab" data-tab="look">光效滤镜</button>
+              <button class="an-tab" data-tab="slice">分块融合</button>
+            </div>
+
+            <!-- 原创指纹 -->
+            <div class="an-pane" data-pane="finger">
+              <label class="an-switch">
+                <input type="checkbox" id="fp-on" checked>
+                <span>导入即自动重塑原创指纹</span>
+              </label>
+
+              <div class="an-field">
+                <span class="an-label">强度</span>
+                <div class="an-seg" id="fp-strength">
+                  <button data-v="light">轻微</button>
+                  <button data-v="std" class="is-on">标准</button>
+                  <button data-v="strong">强力</button>
+                </div>
+              </div>
+
+              <div class="an-field an-field-top">
+                <span class="an-label">手段</span>
+                <div class="an-checks">
+                  <label><input type="checkbox" id="fp-m-recode" checked> 重编码，清空原始元数据</label>
+                  <label><input type="checkbox" id="fp-m-noise" checked> 1LSB 像素微扰</label>
+                  <label><input type="checkbox" id="fp-m-block" checked> 分块差异化调色</label>
+                  <label><input type="checkbox" id="fp-m-resample"> 亚像素重采样（更彻底）</label>
+                </div>
+              </div>
+
+              <div class="an-row">
+                <button class="btn btn-sm btn-primary" id="btn-fp-apply">立即处理</button>
+                <button class="btn btn-sm btn-ghost" id="btn-fp-seed">换种子</button>
+                <span class="an-seed" id="fp-seed">seed —</span>
+              </div>
+
+              <div class="an-report">
+                <div class="an-kv"><span>处理尺寸</span><b id="fp-size">—</b></div>
+                <div class="an-kv"><span>画面差异</span><b id="fp-psnr">—</b></div>
+                <div class="an-kv"><span>原图指纹</span><b id="fp-sha-before">—</b></div>
+                <div class="an-kv"><span>输出指纹</span><b id="fp-sha-after">—</b></div>
+                <div class="an-kv"><span>处理轮次</span><b id="fp-rounds">1 次</b></div>
+              </div>
+
+              <p class="an-note">只处理自己的截图与拍摄：重新编码 + 亚像素微调，画面差异小于 1 个色阶（PSNR 高于 40dB，肉眼无法分辨）。用途是避免自己的作品被平台判定重复、被二次压缩糊掉。</p>
+            </div>
+
+            <!-- 光效滤镜 -->
+            <div class="an-pane is-hide" data-pane="look">
+              <div class="an-field">
+                <span class="an-label">亮度</span>
+                <input type="range" class="an-range" id="lk-bri" min="70" max="130" value="100">
+                <b class="an-val" id="lk-bri-v">100</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">对比度</span>
+                <input type="range" class="an-range" id="lk-con" min="70" max="130" value="100">
+                <b class="an-val" id="lk-con-v">100</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">饱和度</span>
+                <input type="range" class="an-range" id="lk-sat" min="0" max="180" value="100">
+                <b class="an-val" id="lk-sat-v">100</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">色温</span>
+                <input type="range" class="an-range" id="lk-temp" min="-40" max="40" value="0">
+                <b class="an-val" id="lk-temp-v">0</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">锐化</span>
+                <input type="range" class="an-range" id="lk-sharp" min="0" max="100" value="0">
+                <b class="an-val" id="lk-sharp-v">0</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">颗粒</span>
+                <input type="range" class="an-range" id="lk-grain" min="0" max="100" value="0">
+                <b class="an-val" id="lk-grain-v">0</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">暗角</span>
+                <input type="range" class="an-range" id="lk-vig" min="0" max="100" value="0">
+                <b class="an-val" id="lk-vig-v">0</b>
+              </div>
+
+              <div class="an-sub">
+                背景光
+                <label class="an-switch an-switch-sm"><input type="checkbox" id="lk-glow-on"><span>开启</span></label>
+              </div>
+              <div class="an-field">
+                <span class="an-label">强度</span>
+                <input type="range" class="an-range" id="lk-glow" min="0" max="100" value="35">
+                <b class="an-val" id="lk-glow-v">35</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">范围</span>
+                <input type="range" class="an-range" id="lk-glow-size" min="20" max="150" value="80">
+                <b class="an-val" id="lk-glow-size-v">80</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">光位</span>
+                <div class="an-xy">
+                  <input type="range" id="lk-glow-x" min="0" max="100" value="50" title="横向位置">
+                  <input type="range" id="lk-glow-y" min="0" max="100" value="35" title="纵向位置">
+                </div>
+              </div>
+              <div class="an-field">
+                <span class="an-label">光色</span>
+                <input type="color" id="lk-glow-color" value="#fff3d6" class="color-pick">
+              </div>
+
+              <div class="an-row an-row-wrap">
+                <button class="btn btn-sm btn-ghost" data-look-preset="clean">清爽</button>
+                <button class="btn btn-sm btn-ghost" data-look-preset="warm">暖调</button>
+                <button class="btn btn-sm btn-ghost" data-look-preset="cool">冷调</button>
+                <button class="btn btn-sm btn-ghost" data-look-preset="film">胶片</button>
+                <button class="btn btn-sm btn-ghost" data-look-preset="reset">重置</button>
+              </div>
+              <p class="an-note">调完自动生效，不用点应用。背景光走正片叠底之外的高光通道，只提亮不糊细节。</p>
+            </div>
+
+            <!-- 分块融合 -->
+            <div class="an-pane is-hide" data-pane="slice">
+              <label class="an-switch">
+                <input type="checkbox" id="sl-on">
+                <span>分块重塑，块间无缝融合</span>
+              </label>
+
+              <div class="an-field">
+                <span class="an-label">方式</span>
+                <div class="an-seg" id="sl-mode">
+                  <button data-v="strip" class="is-on">横向条带</button>
+                  <button data-v="grid">网格</button>
+                </div>
+              </div>
+              <div class="an-field">
+                <span class="an-label">块数</span>
+                <input type="range" class="an-range" id="sl-count" min="2" max="8" value="4">
+                <b class="an-val" id="sl-count-v">4</b>
+              </div>
+              <div class="an-field">
+                <span class="an-label">过渡带</span>
+                <input type="range" class="an-range" id="sl-feather" min="0" max="100" value="60">
+                <b class="an-val" id="sl-feather-v">60</b>
+              </div>
+
+              <div class="an-row">
+                <button class="btn btn-sm btn-primary" id="btn-sl-add">再叠加一次处理</button>
+                <button class="btn btn-sm btn-ghost" id="btn-sl-undo" disabled title="撤掉最近一轮叠加">返回上一次</button>
+              </div>
+              <div class="an-row">
+                <span class="an-seed" id="sl-rounds">已处理 1 次</span>
+              </div>
+
+              <div class="an-report">
+                <div class="an-kv"><span>接缝检测</span><b id="sl-stitch">—</b></div>
+                <div class="an-kv"><span>块内差异</span><b id="sl-blocks">—</b></div>
+              </div>
+
+              <p class="an-note">每块单独一套微调参数，块与块之间用参数线性过渡，而不是硬拼，所以放到 800% 也看不到缝。叠加只在第一遍做调色，后面每遍只换一套新指纹、幅度按 1/√n 收敛，所以叠 8 次画面也不会变糊。点「返回上一次」可以撤掉最近一轮。</p>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>标注时顺手做掉的三件事</h2></div>
+        <div class="step-list">
+          <div class="step"><span class="step-n">1</span><div><b>马赛克掉个人隐私</b><p>账号头像、邮箱、文件名里的客户名、浏览器书签栏。一次都别漏。</p></div></div>
+          <div class="step"><span class="step-n">2</span><div><b>裁掉他人水印和来源标识</b><p>别人的教程截图、小红书水印、B站用户ID，留着就是投诉证据。</p></div></div>
+          <div class="step"><span class="step-n">3</span><div><b>加自己的编号和箭头</b><p>「① ② ③」加箭头指示，既提升可读性，也构成二次创作，是原创性主张的证据。</p></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 9. 软件选题库 ---------- -->
+    <section class="view is-hide" data-view="software">
+      <div class="card">
+        <div class="card-head"><h2>新增软件记录</h2></div>
+        <div class="form-grid">
+          <label class="field"><span class="field-label">软件名</span><input id="sw-name" placeholder="Notion"></label>
+          <label class="field"><span class="field-label">版本</span><input id="sw-ver" placeholder="v3.12"></label>
+          <label class="field"><span class="field-label">风险等级</span>
+            <select id="sw-risk">
+              <option value="low">低（纯官方工具）</option>
+              <option value="mid">中（含付费墙/授权问题）</option>
+              <option value="high">高（破解/翻墙/争议）</option>
+            </select>
+          </label>
+          <label class="field"><span class="field-label">测试日期</span><input id="sw-date" type="date"></label>
+          <label class="field field-wide"><span class="field-label">结论</span><input id="sw-verdict" placeholder="一句话：适合谁，不适合谁"></label>
+          <label class="field field-wide"><span class="field-label">踩坑记录</span><input id="sw-pit" placeholder="具体报错、第几步失败"></label>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-sw-add">入库</button>
+          <span class="muted" id="sw-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>软件库 / 选题池</h2>
+          <div class="card-actions">
+            <input class="input-inline" id="sw-search" placeholder="搜索">
+            <span class="pill" id="sw-count">0 条</span>
+          </div>
+        </div>
+        <div class="table-wrap"><table class="table" id="sw-table">
+          <thead><tr><th>软件</th><th>版本</th><th>风险</th><th>结论</th><th>测过</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ---------- 10. 投诉看板 ---------- -->
+    <section class="view is-hide" data-view="complaints">
+      <div class="card">
+        <div class="card-head"><h2>登记一次投诉</h2></div>
+        <div class="form-grid">
+          <label class="field"><span class="field-label">文章标题</span><input id="cp-article" placeholder="被投诉的文章"></label>
+          <label class="field"><span class="field-label">投诉方</span><input id="cp-who" placeholder="权利方名称 / 平台规则"></label>
+          <label class="field"><span class="field-label">投诉类型</span>
+            <select id="cp-type">
+              <option value="infringe">侵权（著作权/商标/字体）</option>
+              <option value="rule">平台规则违规</option>
+              <option value="wash">洗稿 / 洗文</option>
+              <option value="other">其他</option>
+            </select>
+          </label>
+          <label class="field"><span class="field-label">收到日期</span><input id="cp-date" type="date"></label>
+          <label class="field"><span class="field-label">状态</span>
+            <select id="cp-status">
+              <option value="pending">待申诉</option>
+              <option value="appealed">已申诉</option>
+              <option value="restored">已恢复</option>
+              <option value="lost">申诉失败</option>
+              <option value="deleted">已删文</option>
+            </select>
+          </label>
+          <label class="field"><span class="field-label">截止日（72h内）</span><input id="cp-deadline" type="date"></label>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-cp-add">登记</button>
+          <span class="muted" id="cp-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>投诉记录</h2>
+          <div class="card-actions"><span class="pill" id="cp-count">0 条</span></div>
+        </div>
+        <div class="table-wrap"><table class="table" id="cp-table">
+          <thead><tr><th>文章</th><th>投诉方</th><th>类型</th><th>收到</th><th>状态</th><th>截止</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>申诉模板</h2>
+          <button class="btn btn-sm" id="btn-copy-appeal">复制模板</button>
+        </div>
+        <pre class="code-block" id="appeal-template">尊敬的平台审核团队：
+
+本人对《__文章标题__》一文于 __日期__ 收到投诉一事，现提交申诉，理由如下：
+
+一、内容性质
+该文为对 __软件名称__ 的________（功能介绍 / 使用教程 / 横向评测），属介绍与评论性质，非复制、非传播原作品。
+
+二、素材来源
+文中全部界面截图为本人于 __设备__ 上实际操作后录制并后期标注，原始录屏文件已留存，可随时提供；拍摄/录制时间为 __日期__。
+
+三、引用范围
+文中提及的软件名称、商标均归其权利人所有，本文仅在必要限度内为说明问题而提及，未构成对原作品的替代，未影响权利人正常使用。
+
+四、诉求
+请求复核并恢复该文。如仍需调整，请具体指明需修改处，本人愿意配合修改后重新发布。
+
+附件：原始录屏文件、截图源文件、素材授权凭证
+
+申诉人：__公众号名称__
+__日期__</pre>
+      </div>
+    </section>
+
+    <!-- ---------- 11. 多平台改写 ---------- -->
+    <section class="view is-hide" data-view="multiplatform">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>原始稿件</h2></div>
+          <label class="field">
+            <span class="field-label">正文</span>
+            <textarea id="mp-input" rows="18" placeholder="把公众号正文贴进来"></textarea>
+          </label>
+          <div class="field-row">
+            <button class="btn btn-primary" id="btn-mp-gen">生成四平台版本</button>
+            <span class="muted">规则化结构改写</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>平台规范</h2></div>
+          <div id="mp-rules"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>改写结果</h2>
+          <div class="card-actions">
+            <button class="btn btn-sm" data-mp-copy="xhs">复制小红书</button>
+            <button class="btn btn-sm" data-mp-copy="zhihu">复制知乎</button>
+            <button class="btn btn-sm" data-mp-copy="bili">复制B站</button>
+            <button class="btn btn-sm" data-mp-copy="douyin">复制抖音</button>
+          </div>
+        </div>
+        <div id="mp-result" class="empty">生成后这里会出现四个版本</div>
+      </div>
+    </section>
+
+    <!-- ---------- 12. 数据复盘 ---------- -->
+    <section class="view is-hide" data-view="analytics">
+      <div class="card">
+        <div class="card-head">
+          <h2>从公众号后台抓取</h2>
+          <span class="muted">先打开「内容分析 → 图文分析」点一次查询，再回来抓</span>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-scrape">抓取当前标签页</button>
+          <button class="btn" id="btn-scrape-open">打开图文分析页</button>
+          <button class="btn btn-ghost" id="btn-scrape-clear">清空抓取缓存</button>
+          <span class="muted" id="scrape-msg">未抓取</span>
+        </div>
+        <div id="scrape-preview"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>录入一篇的复盘数据</h2></div>
+        <div class="form-grid">
+          <label class="field"><span class="field-label">文章标题</span><input id="an2-title" placeholder="文章标题"></label>
+          <label class="field"><span class="field-label">发布日期</span><input id="an2-date" type="date"></label>
+          <label class="field"><span class="field-label">阅读量</span><input id="an2-read" type="number" placeholder="1200"></label>
+          <label class="field"><span class="field-label">完读率 %</span><input id="an2-finish" type="number" step="0.1" placeholder="42.5"></label>
+          <label class="field"><span class="field-label">在看数</span><input id="an2-like" type="number" placeholder="18"></label>
+          <label class="field"><span class="field-label">涨粉数</span><input id="an2-fans" type="number" placeholder="6"></label>
+          <label class="field"><span class="field-label">发布评分</span><input id="an2-score" type="number" placeholder="85"></label>
+          <label class="field"><span class="field-label">AI 度</span><input id="an2-ai" type="number" placeholder="25"></label>
+        </div>
+        <div class="field-row">
+          <button class="btn btn-primary" id="btn-an2-add">录入</button>
+          <span class="muted" id="an2-msg"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>趋势</h2>
+          <div class="card-actions"><span class="pill" id="an2-count">0 篇</span></div>
+        </div>
+        <div class="stat-row" id="an2-stats"></div>
+        <canvas id="an2-chart" height="180"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>结论是怎么跑出来的</h2></div>
+        <div class="para">
+          <p>录入累计 10 篇以上，就能看出规律：<b>发布评分高且 AI 度低的文章</b>，完读率和在看数通常明显更好。</p>
+          <p>反过来，如果某篇没推荐，先看它的 AI 度和红线命中数——这两个指标和「不给推荐」的相关性最高。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>历史记录</h2></div>
+        <div class="table-wrap"><table class="table" id="an2-table">
+          <thead><tr><th>标题</th><th>日期</th><th>阅读</th><th>完读</th><th>在看</th><th>涨粉</th><th>评分</th><th>AI度</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <!-- ---------- 11. 封面设计 ---------- -->
+    <section class="view is-hide" data-view="cover">
+      <div class="cover-app is-left-open is-right-open" id="cover-app">
+
+        <button class="cv-tri cv-tri-l" id="cv-tri-left" title="展开 / 收起工具面板（图层·版式·尺寸·AI 底图）"></button>
+        <button class="cv-tri cv-tri-r" id="cv-tri-right" title="展开 / 收起属性面板（位置·排版·特效）"></button>
+
+        <aside class="cv-left" id="cv-panel-tools">
+          <div class="cv-pane-tabs">
+            <button class="cv-ptab is-on" data-pane="template">版式</button>
+            <button class="cv-ptab" data-pane="sticker">素材</button>
+            <button class="cv-ptab" data-pane="size">尺寸</button>
+            <button class="cv-ptab" data-pane="prompt">AI 底图</button>
+          </div>
+
+          <div class="cv-pane is-on" data-pane="template">
+            <div class="cv-preset-bar">
+              <button class="btn btn-sm" id="cv-preset-save" style="width:100%">保存当前设计为预设</button>
+            </div>
+            <div class="cv-preset-list" id="cv-preset-list"></div>
+            <div class="cv-group-title" style="margin:14px 0 8px">内置版式</div>
+            <div class="cv-template-grid" id="cv-template-grid"></div>
+          </div>
+
+          <div class="cv-pane" data-pane="sticker">
+            <div class="cv-group-title" style="margin:0 0 10px">文件夹素材 · 20 个</div>
+            <div class="cv-sticker-grid" id="cv-sticker-grid"></div>
+            <div class="cv-pane-hint">点一下插入画布，插入后可拖动缩放；带文字标签的会另外配一个可改的文字层。</div>
+          </div>
+
+          <div class="cv-pane" data-pane="size">
+            <div class="cv-size-list" id="cv-size-list"></div>
+            <div class="cv-custom-size">
+              <div class="cv-cs-row">
+                <label>宽<input type="number" id="cv-w" min="100" max="4000" value="900"></label>
+                <label>高<input type="number" id="cv-h" min="100" max="4000" value="383"></label>
+              </div>
+              <button class="btn btn-sm" id="cv-apply-size" style="width:100%">应用自定义尺寸</button>
+            </div>
+          </div>
+
+          <div class="cv-pane" data-pane="prompt">
+            <label class="cv-field">
+              <span>文章内容 / 标题</span>
+              <textarea id="cv-article" rows="4" placeholder="粘贴文章内容，或者只写标题。用来生成底图提示词。"></textarea>
+            </label>
+            <label class="cv-field">
+              <span>构图风格</span>
+              <select id="cv-style"></select>
+            </label>
+            <button class="btn btn-primary btn-sm" id="cv-gen-prompt" style="width:100%;margin-bottom:10px">生成 AI 提示词</button>
+            <pre class="cv-prompt-out" id="cv-prompt-out">提示词会出现在这里。
+
+用法：复制到任意 AI 绘图工具（即梦 / 豆包 / MJ / SD）生成底图，然后把图上传回来。文字由本编辑器排版，不会出错字。</pre>
+            <button class="btn btn-sm" id="cv-copy-prompt" style="width:100%;margin-top:8px">复制提示词</button>
+          </div>
+        </aside>
+
+        <div class="cv-center">
+          <div class="cv-toolbar">
+            <button class="cv-tool" id="cv-undo" title="撤销 Ctrl+Z">↶</button>
+            <button class="cv-tool" id="cv-redo" title="重做 Ctrl+Shift+Z">↷</button>
+            <span class="cv-divider"></span>
+            <button class="cv-tool is-on" id="cv-grid" title="网格">▦</button>
+            <button class="cv-tool is-on" id="cv-snap" title="吸附对齐">⇥</button>
+            <span class="cv-divider"></span>
+            <button class="cv-tool" id="cv-upload-bg" title="上传图片作底图">上传底图</button>
+            <input type="file" id="cv-file" accept="image/*" hidden>
+            <span class="cv-spacer"></span>
+            <span class="cv-save-state" id="cv-save-state" title="改动会自动保存，刷新不丢">已保存</span>
+            <span class="cv-dims" id="cv-dims">900 × 383</span>
+            <button class="btn btn-sm" id="cv-copy" title="复制成图片（含背景和全部内容），到公众号正文 Ctrl+V">复制</button>
+            <button class="btn btn-sm" id="cv-insert" title="生成图片并插入公众号正文">插入编辑器</button>
+            <button class="btn btn-primary btn-sm" id="cv-export">导出</button>
+          </div>
+
+          <div class="cv-stage-wrap" id="cv-stage-wrap">
+            <div class="cv-stage" id="cv-stage">
+              <div class="cv-canvas" id="cv-canvas"></div>
+            </div>
+          </div>
+
+          <div class="cv-zoombar">
+            <button class="cv-tool sm" id="cv-zoom-out">−</button>
+            <span id="cv-zoom-label">适应</span>
+            <button class="cv-tool sm" id="cv-zoom-in">+</button>
+            <button class="cv-tool sm" id="cv-zoom-fit">适应窗口</button>
+            <span class="cv-divider"></span>
+            <span class="cv-zoombar-hint" id="cv-sel-hint">未选中图层</span>
+            <span class="cv-build" id="cv-build">build</span>
+          </div>
+        </div>
+
+        <aside class="cv-right" id="cv-panel-props">
+          <div class="cv-inspector" id="cv-inspector">
+            <div class="cv-empty">选中一个图层开始编辑</div>
+          </div>
+        </aside>
+
+      </div>
+    </section>
+
+    <!-- ---------- 16. 智录笔记（内置独立应用 · 沙箱页） ---------- -->
+    <section class="view is-hide" data-view="zhilu">
+      <div class="studio-shell">
+        <div class="studio-bar">
+          <div class="studio-id">
+            <b>智录笔记</b>
+            <span>视频 + 字幕 → 截图廊 → 笔记 → 封面 → 公众号图文；还带视频理解提示词、AI 短剧生产、电影级 PPT 演讲者模式</span>
+          </div>
+          <div class="studio-acts">
+            <button class="btn btn-sm btn-ghost" id="studio-zhilu-new">新窗口</button>
+            <button class="btn btn-sm btn-ghost" id="studio-zhilu-reload">重新加载</button>
+          </div>
+        </div>
+        <div class="studio-body">
+          <div class="studio-tip" id="studio-zhilu-tip">正在加载智录笔记…</div>
+          <iframe class="studio-frame" id="studio-zhilu" title="智录笔记" data-src="../studio/zhilu.html" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 17. 情绪导演（内置独立应用 · 沙箱页） ---------- -->
+    <section class="view is-hide" data-view="emotion">
+      <div class="studio-shell">
+        <div class="studio-bar">
+          <div class="studio-id">
+            <b>情绪导演 · 脸身声词四重奏</b>
+            <span>分镜/大纲/小说/口播 → 精确到秒的表演指令，含四重奏速览与导演评分</span>
+          </div>
+          <div class="studio-acts">
+            <button class="btn btn-sm btn-ghost" id="studio-emotion-new">新窗口</button>
+            <button class="btn btn-sm btn-ghost" id="studio-emotion-reload">重新加载</button>
+          </div>
+        </div>
+        <div class="studio-body">
+          <div class="studio-tip" id="studio-emotion-tip">正在加载情绪导演…</div>
+          <iframe class="studio-frame" id="studio-emotion" title="情绪导演" data-src="../studio/emotion.html" allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 14. 团队设置 ---------- -->
+    <section class="view is-hide" data-view="settings">
+      <!-- ---------- 公众号绑定 ---------- -->
+      <div class="card" id="card-wx">
+        <div class="card-head">
+          <h2>公众号绑定</h2>
+          <div class="card-actions"><span class="pill" id="wx-state">未绑定</span></div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label class="field">
+              <span class="field-label">AppID</span>
+              <input type="text" id="wx-appid" placeholder="wxxxxxxxxxxxxxxxxx" autocomplete="off" spellcheck="false">
+            </label>
+            <label class="field">
+              <span class="field-label">AppSecret</span>
+              <input type="password" id="wx-secret" placeholder="只存在本机 chrome.storage.local" autocomplete="off" spellcheck="false">
+            </label>
+          </div>
+          <div>
+            <label class="field">
+              <span class="field-label">默认作者</span>
+              <input type="text" id="wx-author" placeholder="推草稿时自动带上的作者名">
+            </label>
+            <label class="field">
+              <span class="field-label">默认封面图 URL（可选）</span>
+              <input type="text" id="wx-cover" placeholder="https://… 建议 900×383">
+            </label>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <button class="btn btn-primary" id="wx-save">保存并检测</button>
+          <button class="btn btn-ghost" id="wx-ip">查本机公网 IP</button>
+          <span class="muted" id="wx-msg"></span>
+        </div>
+
+        <div class="tipbox">
+          <b>两条通道，按需选：</b><br>
+          ① <b>网页会话（零配置）</b>——编辑台点「写入」，直接在你已登录的公众号图文页里排版，不用 AppID，也不受 IP 限制。<br>
+          ② <b>官方接口（可选）</b>——填了 AppID / AppSecret 才能「推送草稿箱」。注意接口有 <b>IP 白名单</b>：换 Wi-Fi、换热点后要在
+          公众号后台「设置与开发 → 基本配置 → API IP 白名单」里更新，否则报 40164。<br>
+          凭据只存本机，不上传任何服务器。
+        </div>
+      </div>
+
+      <!-- ---------- AI 平台接入 ---------- -->
+      <div class="card" id="card-ai">
+        <div class="card-head">
+          <h2>AI 平台接入</h2>
+          <div class="card-actions">
+            <span class="ai-state" id="ai-state"></span>
+          </div>
+        </div>
+
+        <!-- 未配置 / 配置中 -->
+        <div id="ai-form">
+          <div class="field-row">
+            <label class="field" style="flex:1;margin:0">
+              <span class="field-label">平台</span>
+              <select id="ai-provider"></select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span class="field-label">API Key</span>
+            <input type="password" id="ai-key" placeholder="粘贴你的 API Key" autocomplete="off" spellcheck="false">
+          </label>
+
+          <div class="field-row" id="ai-custom-row" hidden>
+            <label class="field" style="flex:1;margin:0">
+              <span class="field-label">接口地址（OpenAI 兼容，写到 /v1）</span>
+              <input type="text" id="ai-baseurl" placeholder="https://your-endpoint/v1">
+            </label>
+          </div>
+
+          <div class="field-row">
+            <label class="field" style="flex:1;margin:0">
+              <span class="field-label">模型</span>
+              <input type="text" id="ai-model" placeholder="gpt-4o-mini" list="ai-model-list">
+              <datalist id="ai-model-list"></datalist>
+            </label>
+          </div>
+
+          <div class="field-row">
+            <button class="btn btn-primary" id="btn-ai-save">验证并保存</button>
+            <span class="muted" id="ai-msg"></span>
+          </div>
+
+          <div class="tipbox">
+            Key 只存在本机 <code>chrome.storage.local</code>，不上传任何服务器。
+            验证通过后这块会自动收起，侧边栏「封面设计」旁边会亮一个绿点。
+          </div>
+        </div>
+
+        <!-- 已验证：收起状态 -->
+        <div id="ai-done" hidden>
+          <div class="ai-connected">
+            <span class="ai-dot" title="已连接"></span>
+            <div class="ai-connected-main">
+              <b id="ai-done-provider">—</b>
+              <span class="ai-connected-sub" id="ai-done-sub">—</span>
+            </div>
+            <span class="ai-brand">Writer Guard</span>
+            <button class="btn btn-sm btn-ghost" id="btn-ai-reset">重新配置</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-head"><h2>操作人</h2></div>
+          <label class="field">
+            <span class="field-label">你在这台电脑上的名字（写进每条记录的 operator 字段）</span>
+            <input type="text" id="op-name" placeholder="例如：阿四">
+          </label>
+          <div class="field-row">
+            <button class="btn btn-primary" id="btn-op-save">保存</button>
+            <span class="muted" id="op-msg"></span>
+          </div>
+          <div class="tipbox">
+            团队合并时靠 operator + updatedAt 判断谁更新。名字固定下来，别每次改。
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><h2>品类词库</h2></div>
+          <p class="para">选中你的实际品类，检测时会叠加该品类的专属红线。</p>
+          <div class="cat-pick" id="cat-pick"></div>
+          <div class="field-row">
+            <span class="muted" id="cat-pick-msg">当前：仅通用规则</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>台账互换（团队协作）</h2>
+          <div class="card-actions">
+            <button class="btn btn-sm" id="btn-csv-export">导出 CSV 台账</button>
+            <button class="btn btn-sm" id="btn-csv-import">导入 CSV（合并）</button>
+            <input type="file" id="file-csv" accept=".csv,text/csv" hidden>
+          </div>
+        </div>
+        <div class="collab-flow">
+          <div class="collab-step"><b>A 采集</b><span>同事各自在本地登记，名字写在操作人里</span></div>
+          <div class="collab-arrow">→</div>
+          <div class="collab-step"><b>B 导出</b><span>每人导出 CSV 台账发到群里</span></div>
+          <div class="collab-arrow">→</div>
+          <div class="collab-step"><b>C 合并</b><span>台账管理员依次导入，选「合并」</span></div>
+          <div class="collab-arrow">→</div>
+          <div class="collab-step"><b>D 回发</b><span>合并后的 CSV 发回群里，各自导入覆盖</span></div>
+        </div>
+        <div class="warnbox" style="margin-top:14px">
+          <p><b>合并规则：</b>按记录 id 去重，同一条记录谁的「更新时间」更晚就保留谁的版本。所以改完一条记录要重新保存，否则合并不上。</p>
+          <p><b>为什么不做实时同步：</b>扩展没有后端，真实时同步要部署服务器和账号体系。CSV 互换零成本、可审计、出问题能回滚，对 3–10 人的小编团队够用。</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>变更日志</h2>
+          <div class="card-actions">
+            <span class="pill" id="log-count">0 条</span>
+            <button class="btn btn-sm btn-ghost" id="btn-log-clear">清空</button>
+          </div>
+        </div>
+        <div id="log-list" class="log-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>完整备份</h2></div>
+        <p class="para">JSON 备份含全部数据（台账、图片指纹、日志、设置）；CSV 只含四张台账，方便在表格软件里协作。</p>
+        <div class="field-row">
+          <button class="btn" id="btn-json-export">导出 JSON 备份</button>
+          <button class="btn" id="btn-json-merge">合并导入 JSON</button>
+          <input type="file" id="file-json-merge" accept="application/json" hidden>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="../data/dict.js"></script>
+<script src="core.js"></script>
+<script src="engine.js"></script>
+<script src="rewriter.js"></script>
+<script src="md2wx.js"></script>
+<script src="mod-compliance.js"></script>
+<script src="mod-assets.js"></script>
+<script src="mod-tools.js"></script>
+<script src="mod-data.js"></script>
+<script src="mod-stickers.js"></script>
+<script src="mod-cover.js"></script>
+<script src="mod-ai.js"></script>
+<script src="mod-writer.js"></script>
+<script src="mod-settings.js"></script>
+<script src="mod-doubao.js"></script>
+<script src="mod-studio.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

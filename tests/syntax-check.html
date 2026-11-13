@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>syntax-check</title></head>
+<body><pre id="out">running...</pre>
+<script>
+const FILES = [
+  '../data/dict.js',
+  '../workbench/core.js',
+  '../workbench/engine.js',
+  '../workbench/rewriter.js',
+  '../workbench/mod-compliance.js',
+  '../workbench/mod-assets.js',
+  '../workbench/mod-tools.js',
+  '../workbench/mod-data.js',
+  '../workbench/mod-stickers.js',
+  '../workbench/mod-cover.js',
+  '../workbench/mod-ai.js',
+  '../workbench/md2wx.js',
+  '../workbench/mod-writer.js',
+  '../workbench/mod-settings.js',
+  '../workbench/mod-doubao.js',
+  '../workbench/mod-studio.js',
+  '../workbench/app.js',
+  '../content/content.js',
+  '../content/net-hook.js',
+  '../content/data-scrape.js',
+  '../content/skills-data.js',
+  '../content/doubao.js',
+  '../popup/popup.js',
+  '../background.js',
+];
+
+(async () => {
+  const lines = [];
+  let fail = 0;
+  for (const f of FILES) {
+    try {
+      const res = await fetch(f, { cache: 'no-store' });
+      if (!res.ok) { lines.push('MISS ' + f + ' (HTTP ' + res.status + ')'); fail++; continue; }
+      const code = await res.text();
+      new Function(code);
+      lines.push('OK   ' + f.replace('../', '') + '  (' + code.split('\n').length + ' lines)');
+    } catch (e) {
+      lines.push('FAIL ' + f + '  ::  ' + e.name + ': ' + e.message);
+      fail++;
+    }
+  }
+  lines.push('');
+  lines.push(fail === 0 ? 'RESULT: ALL PASS' : 'RESULT: ' + fail + ' FAILED');
+  document.getElementById('out').textContent = lines.join('\n');
+})();
+</script>
+</body></html>

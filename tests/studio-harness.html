@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Studio 桥接测试台</title>
+<style>
+  body { font: 13px/1.6 system-ui, "Microsoft YaHei", sans-serif; margin: 0; padding: 12px; background: #f1f5f9; }
+  .row { display: flex; gap: 12px; align-items: flex-start; }
+  iframe { border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; }
+  #out { font-family: Consolas, monospace; font-size: 12px; white-space: pre-wrap; background: #0f172a; color: #a7f3d0; padding: 10px; border-radius: 8px; margin-top: 10px; }
+</style>
+</head>
+<body>
+<!-- 用 sandbox="allow-scripts" 模拟扩展沙箱页：opaque origin + 禁用 chrome.* API -->
+<div class="row">
+  <iframe id="f-emotion" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"
+          src="../studio/emotion.html" style="width:960px;height:680px"></iframe>
+  <iframe id="f-zhilu" sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"
+          src="../studio/zhilu.html" style="width:1160px;height:680px"></iframe>
+</div>
+<div id="out"></div>
+
+<script>
+window.__msgs = [];
+window.__lastWriter = null;
+window.__lastCmp = null;
+window.__lastDownload = null;
+window.__fetchCalls = [];
+window.__helloAI = null;   /* 想模拟「工作台已配好 API」就设它 */
+
+const SEED = {
+  zhilu: {
+    zhilu_api_key_v2: 'sk-seed-test-123',
+    zhilu_wm_presets: JSON.stringify(['预设一', '预设二', '预设三']),
+    styleTemplates_v2: null,
+  },
+  emotion: {},
+};
+
+/* 模拟「设置里刚存了 Key」：主动广播给两个内置应用 */
+window.__setAI = function (cfg) {
+  window.__helloAI = cfg || null;
+  ['f-emotion', 'f-zhilu'].forEach(function (id) {
+    var f = document.getElementById(id);
+    if (f && f.contentWindow) {
+      f.contentWindow.postMessage({ __wgStudio: 'PARENT', type: 'WG_AI_CFG', ai: cfg || null }, '*');
+    }
+  });
+  return true;
+};
+
+window.addEventListener('message', function (e) {
+  const d = e.data || {};
+  const app = d.__wgStudio;
+  if (app !== 'zhilu' && app !== 'emotion') return;
+
+  window.__msgs.push(app + ':' + d.type);
+
+  if (d.type === 'WG_READY') {
+    e.source.postMessage({
+      __wgStudio: 'PARENT', type: 'WG_BRIDGE_HELLO',
+      ls: SEED[app] || {},
+      ai: window.__helloAI,
+    }, '*');
+    return;
+  }
+  if (d.type === 'WG_FETCH') {
+    window.__fetchCalls.push({ app: app, url: d.url, method: d.method, body: d.body, headers: d.headers });
+    const payload = JSON.stringify({
+      bridged: true, echo: d.url, from: 'harness',
+      choices: [{ message: { content: '## [导演词] 测试输出\n[脸] 测试\n[身] 测试\n[声] 测试\n[词] 测试' } }],
+      data: [{ id: 'model-x' }],
+    });
+    e.source.postMessage({
+      __wgStudio: 'PARENT', type: 'WG_FETCH_RES', id: d.id,
+      ok: true, status: 200, statusText: 'OK',
+      headers: { 'content-type': 'application/json' },
+      bodyB64: btoa(unescape(encodeURIComponent(payload))),
+    }, '*');
+    return;
+  }
+  if (d.type === 'WG_TO_WRITER') { window.__lastWriter = { md: d.md, title: d.title }; return; }
+  if (d.type === 'WG_TO_COMPLIANCE') { window.__lastCmp = d.text; return; }
+  if (d.type === 'WG_DOWNLOAD') { window.__lastDownload = { name: d.filename, size: (d.bodyB64 || '').length }; return; }
+});
+
+/* 给测试脚本一个出口 */
+window.__ready = true;
+</script>
+</body>
+</html>

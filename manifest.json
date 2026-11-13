@@ -1,0 +1,118 @@
+{
+    "manifest_version": 3,
+    "name": "公众号发布安全台 · Writer Guard",
+    "version": "1.29.3",
+    "description": "公众号小编的合规工作台：Markdown 编辑台（真机手机预览/AI 写作，未配 API 把提示词直接填进右侧内置豆包侧窗并发送；智录笔记投递只带短图代号、预览显示真图不显示 base64；隐形字数插完可继续编辑；高度自定义记忆）+ 内嵌豆包侧窗（工作台内鼠标离开自动收起；公众号编辑页右下角也有豆包按钮，点击才收起）+ 智录笔记（视频截图/封面/短剧/PPT）+ 情绪导演（脸身声词四重奏，自动复用工作台 API Key）、红线词实时拦截、AI痕迹检测、专业封面设计器（复制即高清 PNG/HTML，插入正文开头）、截图标注（滚轮放大/原创指纹/背景光/分块融合可叠加可撤销）、素材授权台账、数据复盘。",
+    "minimum_chrome_version": "111",
+    "permissions": [
+        "storage",
+        "activeTab",
+        "tabs",
+        "alarms",
+        "clipboardWrite",
+        "scripting",
+        "unlimitedStorage"
+    ],
+    "host_permissions": [
+        "https://mp.weixin.qq.com/*",
+        "https://api.openai.com/*",
+        "https://api.deepseek.com/*",
+        "https://open.bigmodel.cn/*",
+        "https://api.moonshot.cn/*",
+        "https://dashscope.aliyuncs.com/*",
+        "https://ark.cn-beijing.volces.com/*",
+        "https://api.weixin.qq.com/*",
+        "https://api4.ipify.org/*",
+        "https://api.ipify.org/*",
+        "https://*.doubao.com/*",
+        "https://*.byteimg.com/*",
+        "https://*.ibyteimg.com/*",
+        "https://*.bytetos.com/*",
+        "https://*.pstatp.com/*",
+        "https://*.volccdn.com/*",
+        "https://*.agnes-ai.com/*",
+        "https://speech.platform.bing.com/*"
+    ],
+    "sandbox": {
+        "pages": [
+            "studio/zhilu.html",
+            "studio/emotion.html"
+        ]
+    },
+    "background": {
+        "service_worker": "background.js"
+    },
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_title": "发布安全台"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://mp.weixin.qq.com/*"
+            ],
+            "js": [
+                "content/net-hook.js"
+            ],
+            "run_at": "document_start",
+            "world": "MAIN",
+            "all_frames": true
+        },
+        {
+            "matches": [
+                "https://mp.weixin.qq.com/*"
+            ],
+            "js": [
+                "content/data-scrape.js"
+            ],
+            "run_at": "document_idle",
+            "all_frames": true
+        },
+        {
+            "matches": [
+                "https://mp.weixin.qq.com/*"
+            ],
+            "js": [
+                "data/dict.js",
+                "workbench/rewriter.js",
+                "content/content.js"
+            ],
+            "css": [
+                "content/content.css"
+            ],
+            "run_at": "document_idle",
+            "all_frames": false
+        },
+        {
+            "matches": [
+                "https://www.doubao.com/*",
+                "https://doubao.com/*"
+            ],
+            "js": [
+                "content/skills-data.js",
+                "content/doubao.js"
+            ],
+            "run_at": "document_idle",
+            "all_frames": true
+        }
+    ],
+    "options_page": "workbench/workbench.html",
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "workbench/*",
+                "data/*",
+                "icons/*",
+                "studio/*"
+            ],
+            "matches": [
+                "https://mp.weixin.qq.com/*"
+            ]
+        }
+    ],
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    }
+}

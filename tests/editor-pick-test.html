@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>editor-pick-test</title></head>
+<body>
+<pre id="testout">running...</pre>
+<script>
+window.chrome = {
+  runtime: { onMessage: { addListener: function(){} }, getURL: function(p){return p;}, sendMessage: function(){}, lastError: null },
+  storage: { local: { get: function(k,cb){ if(cb) cb({}); }, set: function(o,cb){ if(cb) cb(); }, remove: function(){} } }
+};
+try { localStorage.clear(); } catch(e) {}
+</script>
+
+<!-- 模拟公众号图文编辑页：标题是 contenteditable 的 div，
+     正文在老版 UEditor 的 iframe 里（这正是「正文写进标题栏」的现场） -->
+<div id="host">
+  <div class="appmsg_edit">
+    <div class="title_input">
+      <div id="js_title" contenteditable="true"
+           style="width:640px;height:44px;line-height:44px;font-size:22px;border:1px solid #ddd">原标题在这里</div>
+    </div>
+    <div class="editor_area" style="margin-top:16px">
+      <iframe id="ued" style="width:660px;height:360px;border:1px solid #ddd"></iframe>
+    </div>
+  </div>
+</div>
+
+<script src="../data/dict.js"></script>
+<script src="../workbench/rewriter.js"></script>
+<script>
+window.addEventListener('error', function (ev) {
+  if (/ResizeObserver/i.test(ev.message || '')) return;
+  var pre = document.getElementById('testout');
+  if (pre && pre.textContent === 'running...') pre.textContent = 'ERROR: ' + ev.message + ' @' + (ev.filename||'').split('/').pop() + ':' + ev.lineno;
+});
+</script>
+<script src="../content/content.js"></script>
+
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+  function finish() {
+    out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+    out.unshift('');
+    document.getElementById('testout').textContent = out.join('\n');
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function titleEl() { return document.getElementById('js_title'); }
+  function titleTxt() { return (titleEl().innerText || titleEl().textContent || '').trim(); }
+  function frameBody() {
+    try { return document.getElementById('ued').contentDocument.body; } catch (e) { return null; }
+  }
+
+  /* 把正文 iframe 灌好内容（同源 srcdoc，模拟 UEditor 的编辑区 body） */
+  function fillFrame(html) {
+    return new Promise(function (res) {
+      var f = document.getElementById('ued');
+      f.onload = function () {
+        try {
+          var b = f.contentDocument.body;
+          b.setAttribute('contenteditable', 'true');
+          b.style.cssText = 'min-height:340px;font-size:16px;padding:8px';
+          b.innerHTML = html || '';
+        } catch (e) { /* ignore */ }
+        res(f.contentDocument.body);
+      };
+      f.srcdoc = '<!DOCTYPE html><html><body></body></html>';
+    });
+  }
+
+  function infoTop() {
+    var list = window.__wgEditorInfo ? window.__wgEditorInfo() : [];
+    return list.length ? list[0] : null;
+  }
+
+  (async function () {
+    await fillFrame('<p>正文第一段（原有内容）。</p>');
+    await sleep(300);
+
+    /* ---------- ① 定位：正文在 iframe 里，标题是同款 contenteditable ---------- */
+    ok('测试钩子齐全', typeof window.__wgFindEditor === 'function' &&
+      typeof window.__wgEditorInfo === 'function' && typeof window.__wgInsertHtml === 'function');
+    ok('标题框被判定为短字段', window.__wgIsField(titleEl()) === true);
+
+    var top = infoTop();
+    out.push('[诊断] 候选第一名: ' + JSON.stringify(top));
+    out.push('[诊断] 候选全表: ' + JSON.stringify(window.__wgEditorInfo ? window.__wgEditorInfo() : []));
+    ok('选中的是 iframe 里的正文，不是标题栏', !!top && top.tag === 'body' && top.frame === true,
+      JSON.stringify(top));
+    ok('findEditor 返回 iframe 的 body',
+      !!window.__wgFindEditor && window.__wgFindEditor() === frameBody());
+
+    /* ---------- ② 写入：正文该变长，标题该被填成给定标题 ---------- */
+    var bodyBefore = frameBody().innerText.replace(/\s/g, '').length;
+    var r1 = await window.__wgInsertHtml(
+      '<section><p>排版正文第一段。</p><p>排版正文第二段，带 <strong>加粗</strong>。</p></section>',
+      '标准标题',
+      '排版正文第一段。排版正文第二段，带加粗。'
+    );
+    out.push('[诊断] 写入结果: ' + JSON.stringify(r1));
+
+    var bodyAfter = frameBody().innerText.replace(/\s/g, '').length;
+    ok('写入返回成功', !!r1 && r1.ok === true, JSON.stringify(r1));
+    ok('正文确实变长了', bodyAfter > bodyBefore, bodyBefore + ' → ' + bodyAfter);
+    ok('正文里有排版内容', (frameBody().innerText || '').indexOf('排版正文第一段') >= 0,
+      (frameBody().innerText || '').slice(0, 40));
+    ok('标题没被正文顶掉', titleTxt() === '标准标题', titleTxt());
+    ok('标题里没有正文句子', titleTxt().indexOf('排版正文') < 0, titleTxt());
+
+    /* ---------- ③ 正文是主文档里空的 ProseMirror：也不能选到标题 ---------- */
+    document.getElementById('ued').remove();
+    var pm = document.createElement('div');
+    pm.className = 'ProseMirror';
+    pm.setAttribute('contenteditable', 'true');
+    pm.style.cssText = 'width:640px;height:300px;border:1px solid #ddd';
+    document.querySelector('.editor_area').appendChild(pm);
+    await sleep(120);
+
+    var top2 = infoTop();
+    out.push('[诊断] 空正文候选: ' + JSON.stringify(top2));
+    ok('正文为空时也选 ProseMirror，不选标题', window.__wgFindEditor() === pm,
+      top2 ? JSON.stringify(top2) : 'none');
+
+    var r2 = await window.__wgInsertHtml('<p>第二篇正文。</p>', '第二个标题', '第二篇正文。');
+    out.push('[诊断] r2: ' + JSON.stringify(r2));
+    out.push('[诊断] pm html: ' + (pm.innerHTML || '').slice(0, 120));
+    out.push('[诊断] pm text: ' + JSON.stringify((pm.innerText || '').slice(0, 60)));
+    ok('空正文也能写入', !!r2 && r2.ok === true, JSON.stringify(r2));
+    ok('写进的是 ProseMirror', (pm.innerText || '').indexOf('第二篇正文') >= 0,
+      (pm.innerText || '').slice(0, 30));
+    ok('标题还是标题', titleTxt() === '第二个标题', titleTxt());
+
+    /* ---------- ④ 只有标题、没有正文：宁可不写，也不能写进标题栏 ---------- */
+    pm.remove();
+    await sleep(120);
+    ok('找不到正文时返回空（绝不退回标题栏）', window.__wgFindEditor() === null);
+    var titleBefore = titleTxt();
+    var r3 = await window.__wgInsertHtml('<p>这段不该写在任何地方。</p>', '不该出现的标题', '这段不该写在任何地方。');
+    ok('没有正文时写入失败', !!r3 && r3.ok === false, JSON.stringify(r3));
+    ok('失败原因说清楚', /正文编辑器|标题栏/.test((r3 && r3.msg) || ''), (r3 && r3.msg) || '');
+    ok('标题没被污染', titleTxt() === titleBefore, titleTxt() + ' vs ' + titleBefore);
+
+    finish();
+  })().catch(function (e) {
+    out.push('ERROR: ' + (e && e.message));
+    out.push((e && e.stack) || '');
+    finish();
+  });
+})();
+</script>
+</body></html>

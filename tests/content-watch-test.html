@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>manual-scan-test</title></head>
+<body>
+<pre id="testout">running...</pre>
+<script>
+window.chrome = {
+  runtime: { onMessage: { addListener: function(){} }, getURL: function(p){return p;}, sendMessage: function(){}, lastError: null },
+  storage: { local: { get: function(k,cb){ if(cb) cb({}); }, set: function(o,cb){ if(cb) cb(); }, remove: function(){} } }
+};
+try { localStorage.clear(); } catch(e) {}
+</script>
+
+<div id="host">
+  <div class="ProseMirror" contenteditable="true" style="min-height:80px">这里有破解版下载，还有百度网盘提取码。</div>
+</div>
+
+<script src="../data/dict.js"></script>
+<script src="../workbench/rewriter.js"></script>
+<script>
+window.addEventListener('error', function (ev) {
+  if (/ResizeObserver/i.test(ev.message || '')) return;
+  var pre = document.getElementById('testout');
+  if (pre && pre.textContent === 'running...') pre.textContent = 'ERROR: ' + ev.message + ' @' + (ev.filename||'').split('/').pop() + ':' + ev.lineno;
+});
+</script>
+<script src="../content/content.js"></script>
+
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+  function finish() {
+    out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+    out.unshift('');
+    document.getElementById('testout').textContent = out.join('\n');
+  }
+  function verdict() {
+    var v = document.querySelector('.wg-verdict');
+    return v ? v.textContent.trim() : '';
+  }
+  function redlineText() {
+    var rv = document.querySelector('[data-view="redline"]');
+    return rv ? rv.textContent : '';
+  }
+
+  setTimeout(function () {
+    var fab = document.querySelector('.wg-fab:not(.wg-fab-cover)');
+    ok('FAB 已创建', !!fab);
+    if (fab) fab.click();
+
+    setTimeout(function () {
+      /* ① 打开面板不自动检测 */
+      ok('打开面板显示「未检测」', verdict() === '未检测', verdict());
+      ok('红线区显示未检测提示', redlineText().indexOf('还没检测') >= 0, redlineText().slice(0, 40));
+
+      /* ② 改编辑器内容，等一会也不应自动检测 */
+      var ed = document.querySelector('.ProseMirror');
+      ed.textContent = '震惊！这个永久免费的工具太好用了，记得点赞在看。';
+      ed.dispatchEvent(new Event('input', { bubbles: true }));
+
+      setTimeout(function () {
+        ok('改内容不会自动检测', verdict() === '未检测', verdict());
+
+        /* ③ 点「开始检测」才有结果 */
+        var btn = document.querySelector('[data-act="scan"]');
+        ok('按钮文案是「开始检测」', btn && btn.textContent.trim() === '开始检测',
+           btn ? btn.textContent.trim() : 'no btn');
+        if (btn) btn.click();
+
+        setTimeout(function () {
+          var v2 = verdict();
+          ok('点检测后不再是未检测', v2 !== '未检测' && v2.length > 0, v2);
+          var rv = redlineText();
+          ok('红线区有检测结果', rv.indexOf('还没检测') < 0 && rv.length > 10, rv.slice(0, 50));
+          ok('检测到标题党词', rv.indexOf('震惊') >= 0, rv.slice(0, 80));
+
+          /* ④ 再次改动仍不自动检测，保持上次结果 */
+          var keep = verdict();
+          var ed2 = document.querySelector('.ProseMirror');
+          ed2.textContent = '换了内容但没点检测';
+          ed2.dispatchEvent(new Event('input', { bubbles: true }));
+
+          setTimeout(function () {
+            ok('检测结果保持不变（不自动重扫）', verdict() === keep, keep + ' -> ' + verdict());
+            finish();
+          }, 900);
+        }, 400);
+      }, 900);
+    }, 300);
+  }, 600);
+})();
+</script>
+</body></html>

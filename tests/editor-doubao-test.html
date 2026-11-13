@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>editor-doubao-test</title>
+<link rel="stylesheet" href="../content/content.css">
+</head>
+<body>
+<pre id="testout">running...</pre>
+<script>
+window.chrome = {
+  runtime: {
+    onMessage: { addListener: function(){} },
+    getURL: function(p){ return p; },
+    sendMessage: function(){},
+    lastError: null
+  },
+  storage: { local: { get: function(k,cb){ if(cb) cb({}); }, set: function(o,cb){ if(cb) cb(); }, remove: function(){} } }
+};
+try { localStorage.clear(); } catch(e) {}
+</script>
+
+<div id="host">
+  <div class="ProseMirror" contenteditable="true" style="min-height:80px">正文内容在这里。</div>
+</div>
+
+<script src="../data/dict.js"></script>
+<script src="../workbench/rewriter.js"></script>
+<script>
+window.addEventListener('error', function (ev) {
+  if (/ResizeObserver/i.test(ev.message || '')) return;
+  var pre = document.getElementById('testout');
+  if (pre && pre.textContent === 'running...') pre.textContent = 'ERROR: ' + ev.message + ' @' + (ev.filename||'').split('/').pop() + ':' + ev.lineno;
+});
+</script>
+<script src="../content/content.js"></script>
+
+<script>
+(function () {
+  var out = [], pass = 0, fail = 0;
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+  function finish() {
+    out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+    out.unshift('');
+    document.getElementById('testout').textContent = out.join('\n');
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function move(x, y) {
+    document.dispatchEvent(new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }));
+  }
+  function keys(key) {
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: key, bubbles: true, cancelable: true }));
+  }
+
+  (async function () {
+    await sleep(300);
+
+    /* ---------- ① 按钮位置：封面下面 ---------- */
+    var fabCover = document.querySelector('.wg-fab-cover');
+    var fabDb = document.querySelector('.wg-fab-doubao');
+    var fabWriter = document.querySelector('.wg-fab-writer');
+    ok('公众号页多了「豆包」悬浮按钮', !!fabDb && fabDb.textContent.indexOf('豆包') >= 0,
+      fabDb ? fabDb.textContent.trim() : 'none');
+    ok('豆包按钮紧跟在「封面」后面', !!fabCover && fabCover.nextElementSibling === fabDb,
+      fabCover && fabCover.nextElementSibling ? fabCover.nextElementSibling.className : 'none');
+
+    var cr = fabCover.getBoundingClientRect();
+    var dr = fabDb.getBoundingClientRect();
+    var wr = fabWriter.getBoundingClientRect();
+    out.push('[诊断] 封面 top=' + Math.round(cr.top) + ' 豆包 top=' + Math.round(dr.top) +
+      ' 编辑台 top=' + Math.round(wr.top));
+    ok('豆包显示在封面正下方', dr.top >= cr.bottom - 1 && dr.bottom <= wr.top + 1);
+
+    /* ---------- ② 默认收起，点开才加载 ---------- */
+    var d = window.__wgDoubao();
+    ok('测试钩子可用', !!d && !!d.fab && !!d.wrap);
+    ok('侧窗默认收起', !!d && d.open === false && d.wrap.hidden === true);
+    ok('豆包 iframe 懒加载（开之前没有 src）',
+      !d.frame.getAttribute('src'), d.frame.getAttribute('src') || 'none');
+    ok('iframe 指向自带外壳页', (d.frame.getAttribute('data-src') || '').indexOf('doubao-side.html') >= 0,
+      d.frame.getAttribute('data-src') || '');
+
+    d.fab.click();
+    await sleep(150);
+    d = window.__wgDoubao();
+    ok('点按钮展开侧窗', d.open === true && d.wrap.hidden === false);
+    ok('展开后才真的加载豆包', (d.frame.getAttribute('src') || '').indexOf('doubao-side.html') >= 0,
+      d.frame.getAttribute('src') || 'none');
+
+    /* 侧窗该在右下角、并且不压住悬浮按钮组 */
+    var dbr = d.wrap.getBoundingClientRect();
+    var wrapR = document.querySelector('.wg-fab-wrap').getBoundingClientRect();
+    out.push('[诊断] 侧窗 rect=' + Math.round(dbr.left) + ',' + Math.round(dbr.top) +
+      ' ' + Math.round(dbr.width) + 'x' + Math.round(dbr.height) + ' / fabWrap.top=' + Math.round(wrapR.top));
+    ok('侧窗靠右下角', dbr.right > window.innerWidth - 60 && dbr.bottom > window.innerHeight / 2,
+      Math.round(dbr.right) + ' / ' + window.innerWidth);
+    ok('侧窗不挡住封面/豆包按钮', dbr.bottom <= wrapR.top + 2,
+      Math.round(dbr.bottom) + ' vs ' + Math.round(wrapR.top));
+
+    /* ---------- ③ 鼠标移动绝不收起（用户要求：保持一直显示） ---------- */
+    move(dbr.left + 40, dbr.top + 20);        // 在侧窗里
+    await sleep(60);
+    ok('鼠标在侧窗里保持展开', window.__wgDoubao().open === true);
+
+    move(12, 12);                              // 移到页面左上角 = 离开
+    await sleep(80);
+    move(300, 300);
+    await sleep(400);                          // 远超旧的 220ms 收起缓冲
+    ok('鼠标离开侧窗不收起（保持一直显示）', window.__wgDoubao().open === true,
+      'open=' + window.__wgDoubao().open);
+    move(5, 5);
+    await sleep(400);
+    ok('持续移动鼠标也不收起', window.__wgDoubao().open === true);
+
+    /* ---------- ④ 收起后 iframe 还在，不重载 ---------- */
+    var srcBefore = window.__wgDoubao().frame.getAttribute('src');
+    window.__wgDoubao().setOpen(false);        // 现在只能主动收起
+    await sleep(120);
+    ok('主动收起生效', window.__wgDoubao().open === false);
+    window.__wgDoubao().setOpen(true);
+    await sleep(120);
+    ok('再点开还是同一个 iframe（不重载丢对话）',
+      window.__wgDoubao().frame.getAttribute('src') === srcBefore,
+      (window.__wgDoubao().frame.getAttribute('src') || '').slice(0, 40));
+
+    /* ---------- ⑤ Esc / 关闭按钮（仅剩的收起方式） ---------- */
+    keys('Escape');
+    await sleep(80);
+    ok('Esc 收起侧窗', window.__wgDoubao().open === false);
+
+    window.__wgDoubao().setOpen(true);
+    await sleep(80);
+    document.querySelector('.wg-db-close').click();
+    await sleep(80);
+    ok('点 × 收起侧窗', window.__wgDoubao().open === false);
+
+    /* ---------- ⑥ 打开安全台面板时豆包让位 ---------- */
+    window.__wgDoubao().setOpen(true);
+    await sleep(80);
+    var fabMain = document.querySelector('.wg-fab:not(.wg-fab-cover):not(.wg-fab-doubao):not(.wg-fab-writer)');
+    if (fabMain) fabMain.click();
+    await sleep(150);
+    ok('打开安全台面板时豆包侧窗自动收起', window.__wgDoubao().open === false);
+    ok('安全台面板确实开着', !!document.querySelector('.wg-panel.is-open'));
+
+    finish();
+  })().catch(function (e) {
+    out.push('ERROR: ' + (e && e.message));
+    out.push((e && e.stack) || '');
+    finish();
+  });
+})();
+</script>
+</body></html>

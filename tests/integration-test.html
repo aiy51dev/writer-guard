@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>integration-test</title></head>
+<body><pre id="out">running...</pre>
+<script src="../data/dict.js"></script>
+<script src="../workbench/core.js"></script>
+<script src="../workbench/engine.js"></script>
+<script src="../content/data-scrape.js"></script>
+<script>
+(async function () {
+  const WG = window.WG;
+  const out = [];
+  let pass = 0, fail = 0;
+
+  function ok(name, cond, extra) {
+    if (cond) { pass++; out.push('PASS  ' + name); }
+    else { fail++; out.push('FAIL  ' + name + (extra ? '  ::  ' + extra : '')); }
+  }
+
+  await WG.Store.init();
+  // 清场
+  ['assets','software','complaints','analytics','changelog','operator','categories','dupimg'].forEach(k => WG.Store.set(k, k === 'operator' || k === 'categories' ? '' : []));
+  WG.Store.set('categories', []);
+
+  /* ===== 1. 操作人盖章 ===== */
+  WG.setOperator('阿四');
+  WG.Store.push('assets', { id: 'a1', name: '封面图-32期', source: 'self', proof: '录屏01.mp4', expire: '2027-01-01', article: '第32期' });
+  const a1 = WG.Store.get('assets', [])[0];
+  ok('记录带上操作人', a1.operator === '阿四', a1.operator);
+  ok('记录带上 updatedAt', typeof a1.updatedAt === 'number' && a1.updatedAt > 0);
+
+  /* ===== 2. 变更日志 ===== */
+  const logs = WG.Store.get('changelog', []);
+  ok('新增操作写入日志', logs.length === 1 && logs[0].action === 'add', JSON.stringify(logs.map(l=>l.action)));
+  ok('日志记录操作人', logs[0] && logs[0].operator === '阿四');
+  ok('日志记录目标', logs[0] && logs[0].target === '封面图-32期', logs[0] && logs[0].target);
+
+  /* ===== 3. 删除也写日志 ===== */
+  WG.Store.push('software', { id: 's1', name: 'Notion', ver: 'v3.12', risk: 'low', verdict: '适合知识库', date: '2025-11-01' });
+  WG.Store.remove('software', 's1');
+  const logs2 = WG.Store.get('changelog', []);
+  ok('删除操作写入日志', logs2.some(l => l.action === 'del'), JSON.stringify(logs2.map(l=>l.action)));
+
+  /* ===== 4. CSV 导出结构 ===== */
+  WG.Store.push('analytics', { id: 'n1', title: '实测：文档转换工具横评', date: '2025-11-01', read: 1240, finish: 42.5, like: 18, fans: 6, score: 88, ai: 22 });
+  WG.Store.push('complaints', { id: 'c1', article: '某文', who: '某字体公司', type: 'infringe', status: 'appealed', date: '2025-11-02', deadline: '2025-11-05' });
+
+  const csv = WG.exportCsv({ returnOnly: true });
+  ok('CSV 含 BOM', csv.charCodeAt(0) === 0xFEFF);
+  ok('CSV 含 _module 列', csv.includes('_module'));
+  ok('CSV 含素材台账行', csv.includes('素材台账') && csv.includes('封面图-32期'));
+  ok('CSV 含数据复盘行', csv.includes('数据复盘') && csv.includes('实测：文档转换工具横评'));
+  ok('CSV 含投诉看板行', csv.includes('投诉看板') && csv.includes('某字体公司'));
+  ok('CSV 枚举转中文', csv.includes('自截自录') && csv.includes('侵权') && csv.includes('已申诉'),
+     csv.split('\r\n').slice(1,3).join(' | '));
+  ok('CSV 行数正确', csv.split('\r\n').filter(Boolean).length === 4,
+     String(csv.split('\r\n').filter(Boolean).length));
+
+  /* ===== 5. CSV 往返：导出后清空再导入 ===== */
+  const before = {
+    assets: WG.Store.get('assets', []).length,
+    analytics: WG.Store.get('analytics', []).length,
+    complaints: WG.Store.get('complaints', []).length,
+  };
+  ['assets','analytics','complaints'].forEach(k => WG.Store.set(k, []));
+
+  const imp = WG.importCsv(csv, 'merge');
+  ok('CSV 导入成功', imp.ok === true, imp.msg);
+  ok('往返后条数一致',
+     WG.Store.get('assets', []).length === before.assets &&
+     WG.Store.get('analytics', []).length === before.analytics &&
+     WG.Store.get('complaints', []).length === before.complaints,
+     JSON.stringify({before, after: {assets: WG.Store.get('assets',[]).length, analytics: WG.Store.get('analytics',[]).length, complaints: WG.Store.get('complaints',[]).length}}));
+  ok('往返后枚举还原成代码',
+     WG.Store.get('complaints', [])[0].type === 'infringe' &&
+     WG.Store.get('assets', [])[0].source === 'self',
+     JSON.stringify({t: WG.Store.get('complaints',[])[0] && WG.Store.get('complaints',[])[0].type, s: WG.Store.get('assets',[])[0] && WG.Store.get('assets',[])[0].source}));
+  ok('往返后数字仍是数字',
+     WG.Store.get('analytics', [])[0].read === 1240 && WG.Store.get('analytics', [])[0].finish === 42.5,
+     JSON.stringify(WG.Store.get('analytics',[])[0]));
+
+  /* ===== 6. 合并语义：同 id 时间晚的赢 ===== */
+  WG.Store.set('software', [{ id: 's2', name: 'Figma', ver: 'v1', risk: 'low', verdict: '旧结论', operator: 'A', updatedAt: 1000 }]);
+  const csvMerge = [
+    '_module,id,operator,updatedAt,name,ver,risk,verdict',
+    '软件选题库,s2,B,2025-11-10 10:00,,' + '低' + ',,新结论',
+  ].join('\r\n');
+  const r6 = WG.importCsv(csvMerge, 'merge');
+  const s2 = WG.Store.get('software', []).find(x => x.id === 's2');
+  ok('合并时更新字段生效', s2 && s2.verdict === '新结论', s2 && s2.verdict);
+  ok('合并时更新操作人', s2 && s2.operator === 'B', s2 && s2.operator);
+  ok('合并统计正确', r6.updated >= 1, JSON.stringify(r6));
+
+  /* ===== 7. 合并语义：同 id 时间早的不覆盖 ===== */
+  WG.Store.set('software', [{ id: 's3', name: 'Sketch', ver: 'v9', verdict: '新版本', operator: 'B', updatedAt: 9999999999999 }]);
+  WG.importCsv([
+    '_module,id,operator,updatedAt,name,ver,risk,verdict',
+    '软件选题库,s3,A,2000-01-01 00:00,Sketch,v1,低,旧版本',
+  ].join('\r\n'), 'merge');
+  const s3 = WG.Store.get('software', []).find(x => x.id === 's3');
+  ok('旧版本不覆盖新版本', s3 && s3.verdict === '新版本', s3 && s3.verdict);
+
+  /* ===== 8. 非法 CSV 拒绝 ===== */
+  const bad = WG.importCsv('a,b,c\r\n1,2,3', 'merge');
+  ok('非本工具 CSV 被拒绝', bad.ok === false && /_module/.test(bad.msg), bad.msg);
+
+  /* ===== 9. JSON 合并导入 ===== */
+  const jsonPayload = {
+    app: 'WriterGuard',
+    data: {
+      assets: [{ id: 'a9', name: 'JSON来的图', source: 'paid', operator: 'C', updatedAt: Date.now() }],
+    },
+  };
+  const r9 = WG.importJsonMerge(jsonPayload);
+  ok('JSON 合并成功', r9.ok === true, r9.msg);
+  ok('JSON 合并后记录存在', WG.Store.get('assets', []).some(x => x.id === 'a9'));
+
+  /* ===== 10. 抓取解析：标准公众号接口结构 ===== */
+  const T = window.__WG_SCRAPE_TEST__;
+  ok('抓取测试钩子已暴露', !!T);
+
+  const apiResp = JSON.stringify({
+    base_resp: { ret: 0 },
+    list: [
+      { title: '实测：文档转换工具横评', read_num: 1240, finish_rate: '0.42', like_num: 18, stat_date: '2025-11-01' },
+      { title: 'AI 痕迹自查指南', read_num: '860', finish_rate: 51.3, like_num: 9, stat_date: 1730419200 },
+    ],
+  });
+  const recs = T.extractFromJson(apiResp);
+  ok('能从接口 JSON 提取记录', recs && recs.length === 2, recs ? recs.length : 'null');
+  ok('小数完读率转百分数', recs && recs[0].finish === 42, recs && recs[0].finish);
+  ok('字符串阅读数转数字', recs && recs[1].read === 860, recs && recs[1].read);
+  ok('已经是百分数的不再放大', recs && recs[1].finish === 51.3, recs && recs[1].finish);
+  ok('时间戳转日期', recs && /^\d{4}-\d{2}-\d{2}$/.test(recs[1].date), recs && recs[1].date);
+
+  /* ===== 11. 抓取解析：字段名变体 ===== */
+  const variant = JSON.stringify({
+    data: { items: [{ appmsg_title: '字段名变体测试', int_page_read_count: 500, complete_rate: '38.5%', old_like_num: 7 }] },
+  });
+  const rv = T.extractFromJson(variant);
+  ok('能吃字段名变体', rv && rv.length === 1 && rv[0].read === 500 && rv[0].finish === 38.5,
+     JSON.stringify(rv));
+
+  /* ===== 12. 抓取解析：脏数据不崩 ===== */
+  ok('非 JSON 返回 null', T.extractFromJson('<html>not json</html>') === null);
+  ok('空对象返回 null', T.extractFromJson('{}') === null);
+  ok('数组无标题字段返回 null', T.extractFromJson('{"a":[{"x":1}]}') === null);
+
+  /* ===== 13. 去重合并 ===== */
+  const merged = T.dedupeMerge([
+    { title: '实测：工具横评', read: 100, finish: 40, like: 5, share: 0, fans: 0, date: '' },
+    { title: '实测：工具横评', read: 150, finish: 45, like: 5, share: 0, fans: 0, date: '2025-11-01' },
+    { title: '另一篇', read: 30, finish: 10, like: 1, share: 0, fans: 0, date: '' },
+  ]);
+  ok('去重后保留 2 条', merged.length === 2, String(merged.length));
+  ok('去重取较大阅读数', merged.find(m => m.title === '实测：工具横评').read === 150);
+  ok('去重取较大完读率', merged.find(m => m.title === '实测：工具横评').finish === 45);
+
+  /* ===== 14. 品类设置读写 ===== */
+  WG.setCategories(['dev', 'design']);
+  ok('品类可写入', WG.getCategories().length === 2);
+  WG.toggleCategory('dev');
+  ok('品类可切换关闭', WG.getCategories().length === 1 && WG.getCategories()[0] === 'design');
+
+  out.unshift('======== RESULT: ' + pass + ' pass / ' + fail + ' fail ========');
+  out.unshift('');
+  document.getElementById('out').textContent = out.join('\n');
+})().catch(e => {
+  document.getElementById('out').textContent = 'FATAL: ' + e.message + '\n' + e.stack;
+});
+</script>
+</body></html>

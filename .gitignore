@@ -1,0 +1,24 @@
+# 依赖 / 构建产物
+node_modules/
+dist/
+*.zip
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+.vscode/
+.idea/
+
+# 本地测试临时文件
+.tmp/
+tests/tmp/
+screenshots/~*
+
+# 本地配置与密钥（千万别提交）
+.env
+.env.*
+*.pem
+*.key
+secrets.json

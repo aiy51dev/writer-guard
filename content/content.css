@@ -1,0 +1,479 @@
+/* ============================================================
+ * Writer Guard · 注入样式
+ * 全部使用 wg- 前缀，避免与公众号页面样式冲突。
+ * ============================================================ */
+
+.wg-fab-wrap {
+  position: fixed;
+  right: 22px;
+  bottom: 96px;
+  z-index: 2147482000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.wg-fab-wrap.is-open { display: none; }
+
+.wg-fab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 19px;
+  background: #1f6feb;
+  color: #fff;
+  font: 500 13px/1 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(31, 111, 235, .32);
+  user-select: none;
+  transition: transform .16s ease, background .16s ease;
+}
+.wg-fab-cover {
+  background: #7c3aed;
+  box-shadow: 0 6px 20px rgba(124, 58, 237, .32);
+}
+.wg-fab-cover:hover { background: #6d28d9; }
+.wg-fab-writer {
+  background: #0d9488;
+  box-shadow: 0 6px 20px rgba(13, 148, 136, .32);
+}
+.wg-fab-writer:hover { background: #0f766e; }
+.wg-fab:hover { transform: translateY(-2px); }
+.wg-fab[data-level="bad"]  { background: #e5484d; box-shadow: 0 6px 20px rgba(229, 72, 77, .35); }
+.wg-fab[data-level="mid"]  { background: #f5a623; box-shadow: 0 6px 20px rgba(245, 166, 35, .32); }
+.wg-fab[data-level="good"] { background: #30a46c; box-shadow: 0 6px 20px rgba(48, 164, 108, .32); }
+.wg-fab.is-open { display: none; }
+.wg-fab-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #fff; opacity: .9;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.25);
+}
+
+.wg-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 2147482001;
+  display: flex;
+  flex-direction: column;
+  width: 372px;
+  height: 100vh;
+  background: #fff;
+  border-left: 1px solid #e5e7eb;
+  box-shadow: -8px 0 32px rgba(15, 23, 42, .12);
+  font: 13px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: #1f2328;
+  transform: translateX(100%);
+  transition: transform .22s cubic-bezier(.4, 0, .2, 1);
+  pointer-events: none;
+}
+.wg-panel.is-open { transform: translateX(0); pointer-events: auto; }
+
+.wg-panel-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #f0f1f3;
+}
+.wg-panel-title { display: flex; flex-direction: column; gap: 2px; }
+.wg-panel-title b { font-size: 15px; letter-spacing: .2px; }
+.wg-panel-sub { font-size: 11px; color: #8b949e; }
+.wg-close {
+  width: 26px; height: 26px; border: 0; border-radius: 6px;
+  background: #f5f6f8; color: #57606a; font-size: 17px; line-height: 1;
+  cursor: pointer;
+}
+.wg-close:hover { background: #eaecef; }
+
+.wg-panel-score {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  background: #fafbfc;
+  border-bottom: 1px solid #f0f1f3;
+}
+.wg-score-ring {
+  flex: 0 0 auto;
+  display: flex; align-items: baseline; justify-content: center; gap: 1px;
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: 3px solid #d0d7de;
+  background: #fff;
+}
+.wg-score-ring[data-level="good"] { border-color: #30a46c; }
+.wg-score-ring[data-level="mid"]  { border-color: #f5a623; }
+.wg-score-ring[data-level="bad"]  { border-color: #e5484d; }
+.wg-score-num { font-size: 22px; font-weight: 700; line-height: 64px; }
+.wg-score-ring small { font-size: 10px; color: #8b949e; }
+.wg-score-meta { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.wg-verdict { font-size: 13px; font-weight: 600; }
+.wg-verdict[data-level="good"] { color: #1a7f4b; }
+.wg-verdict[data-level="mid"]  { color: #9a6700; }
+.wg-verdict[data-level="bad"]  { color: #c9252d; }
+.wg-score-hint { font-size: 11px; color: #8b949e; }
+
+.wg-tabs {
+  display: flex; gap: 2px;
+  padding: 8px 12px 0;
+  border-bottom: 1px solid #f0f1f3;
+}
+.wg-tab {
+  flex: 1;
+  padding: 7px 4px 9px;
+  border: 0; border-bottom: 2px solid transparent;
+  background: none;
+  font: 500 12px/1 inherit; color: #57606a;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wg-tab em {
+  font-style: normal; font-size: 10px;
+  padding: 1px 5px; margin-left: 3px;
+  border-radius: 8px; background: #eaecef; color: #57606a;
+}
+.wg-tab.is-on { color: #1f6feb; border-bottom-color: #1f6feb; }
+.wg-tab.is-on em { background: #ddf4ff; color: #0a5cd6; }
+
+.wg-body { flex: 1; overflow-y: auto; padding: 12px; }
+.wg-body::-webkit-scrollbar { width: 8px; }
+.wg-body::-webkit-scrollbar-thumb { background: #d8dee4; border-radius: 4px; }
+.wg-view.is-hide { display: none; }
+
+.wg-empty {
+  padding: 22px 14px; text-align: center;
+  font-size: 12px; color: #8b949e; line-height: 1.7;
+  background: #fafbfc; border-radius: 8px;
+}
+
+.wg-item {
+  padding: 10px 11px; margin-bottom: 8px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #eaecef;
+  border-left-width: 3px;
+}
+.wg-item[data-level="block"] { border-left-color: #e5484d; background: #fff8f8; }
+.wg-item[data-level="warn"]  { border-left-color: #f5a623; background: #fffdf6; }
+.wg-item[data-level="tip"]   { border-left-color: #8b949e; }
+.wg-item-top { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.wg-item-name { font-weight: 600; font-size: 12px; }
+.wg-word {
+  font: 11px/1.5 ui-monospace, "SF Mono", Consolas, monospace;
+  padding: 1px 5px; border-radius: 4px;
+  background: #fff; border: 1px solid #e5e7eb; color: #c9252d;
+}
+.wg-item-ctx {
+  font-size: 11px; color: #57606a; line-height: 1.6;
+  margin: 3px 0 5px; word-break: break-all;
+}
+.wg-item-why { font-size: 11px; color: #8b949e; line-height: 1.6; }
+.wg-item-fix {
+  margin-top: 5px; padding-top: 5px;
+  border-top: 1px dashed #e5e7eb;
+  font-size: 11px; color: #0a5cd6; line-height: 1.6;
+}
+
+.wg-badge {
+  font-size: 10px; font-weight: 600;
+  padding: 1px 6px; border-radius: 4px;
+  background: #eaecef; color: #57606a;
+}
+.wg-badge[data-level="block"] { background: #ffebe9; color: #c9252d; }
+.wg-badge[data-level="warn"]  { background: #fff8e5; color: #9a6700; }
+
+.wg-aimeter { padding: 12px; margin-bottom: 10px; background: #fafbfc; border-radius: 8px; }
+.wg-aimeter-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; font-size: 12px; }
+.wg-aimeter-row b { font-size: 20px; }
+.wg-aimeter-row b[data-level="low"]  { color: #1a7f4b; }
+.wg-aimeter-row b[data-level="mid"]  { color: #9a6700; }
+.wg-aimeter-row b[data-level="high"] { color: #c9252d; }
+.wg-bar { height: 6px; border-radius: 3px; background: #eaecef; overflow: hidden; }
+.wg-bar i { display: block; height: 100%; border-radius: 3px; transition: width .3s ease; }
+.wg-metrics {
+  display: flex; flex-wrap: wrap; gap: 4px 10px;
+  margin-top: 8px; font-size: 10.5px; color: #8b949e;
+}
+
+.wg-check {
+  display: flex; align-items: center; gap: 7px;
+  padding: 7px 9px; margin-bottom: 5px;
+  border-radius: 6px; background: #fafbfc;
+  font-size: 12px;
+}
+.wg-check-ico { font-weight: 700; width: 13px; text-align: center; }
+.wg-check.is-pass .wg-check-ico { color: #30a46c; }
+.wg-check.is-fail .wg-check-ico { color: #e5484d; }
+.wg-check-name { flex: 1; min-width: 0; }
+.wg-check-score { font-size: 11px; color: #8b949e; }
+.wg-total {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #eaecef;
+  text-align: right; font-size: 12px; font-weight: 600; color: #57606a;
+}
+.wg-sub { font-size: 11px; color: #8b949e; margin-bottom: 7px; }
+
+.wg-tipbox {
+  margin-top: 9px; padding: 9px 11px;
+  border-radius: 6px;
+  background: #f0f6ff; border: 1px solid #ddf4ff;
+  font-size: 11px; line-height: 1.7; color: #0a5cd6;
+}
+
+.wg-panel-foot {
+  display: flex; gap: 8px;
+  padding: 11px 14px;
+  border-top: 1px solid #f0f1f3;
+  background: #fafbfc;
+}
+.wg-btn {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #1f6feb; border-radius: 7px;
+  background: #1f6feb; color: #fff;
+  font: 500 12px/1 inherit; cursor: pointer;
+}
+.wg-btn:hover { background: #1a5fd0; }
+.wg-btn-ghost { background: #fff; color: #1f6feb; }
+.wg-btn-ghost:hover { background: #f0f6ff; }
+
+/* 降 AI 味按钮 */
+.wg-btn-fix {
+  flex: 0 0 auto;
+  padding: 8px 13px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: #fff;
+  font: 500 12px/1 inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .16s ease;
+}
+.wg-btn-fix:hover { box-shadow: 0 4px 16px rgba(124, 58, 237, .42); }
+.wg-btn-fix:active { transform: scale(.97); }
+.wg-btn-fix.is-fix-on {
+  background: #fff;
+  border-color: #f59e0b;
+  color: #b45309;
+}
+.wg-btn-fix.is-dead {
+  background: #e5e7eb;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.wg-btn-fix.is-fix-on:hover { box-shadow: 0 4px 14px rgba(245, 158, 11, .3); }
+
+/* 面板内轻提示 */
+.wg-flash {
+  max-height: 0;
+  padding: 0 16px;
+  overflow: hidden;
+  background: #eff4ff;
+  color: #1d4ed8;
+  font-size: 11.5px;
+  line-height: 1.7;
+  transition: max-height .26s ease, padding .26s ease;
+}
+.wg-flash.is-on {
+  max-height: 120px;
+  padding: 11px 16px;
+  border-bottom: 1px solid #dbe7fb;
+  line-height: 1.6;
+}
+.wg-flash[data-kind="warn"] {
+  background: #fffbeb;
+  color: #b45309;
+  border-bottom-color: #fde68a;
+}
+.wg-flash[data-kind="error"] {
+  background: #fef2f2;
+  color: #b91c1c;
+  border-bottom-color: #fecaca;
+  font-weight: 500;
+}
+
+/* 红线替换词 */
+.wg-swap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 7px 10px;
+  border-radius: 7px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+.wg-swap.is-del {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.wg-swap-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #047857;
+}
+.wg-swap.is-del .wg-swap-label { color: #b91c1c; }
+.wg-swap-word {
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: #fff;
+  border: 1px solid #d1fae5;
+  color: #047857;
+  font-size: 11px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.wg-swap.is-del .wg-swap-word {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+.wg-swap-btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.wg-swap-btn:hover { box-shadow: 0 3px 10px rgba(16, 185, 129, .4); }
+.wg-swap-btn:active { transform: scale(.96); }
+.wg-swap.is-del .wg-swap-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+/* ============================================================
+ * 封面设计覆盖层：在公众号页面内全屏打开工作台
+ * ============================================================ */
+
+.wg-cover-overlay {
+  position: fixed;
+  inset: 0;
+  /* 顶到 32 位 z-index 上限：公众号页面右下角的 AI 助手悬浮球
+     用的是 2147483647 这个最高值，我们必须 >= 它才压得住，
+     否则它会盖住覆盖层右下角（豆包抽屉的发送按钮一带） */
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  background: #1e1e22;
+}
+
+/* 覆盖层打开期间，隐藏本插件悬浮球和页面右下角的 AI 助手球，
+   防止它们跟覆盖层里的发送按钮抢位置 */
+html.wg-studio-open .wg-fab-wrap { visibility: hidden !important; }
+html.wg-studio-open .ai-entrance,
+html.wg-studio-open .js_ai_entry,
+html.wg-studio-open [class*="ai-float"],
+html.wg-studio-open [class*="robot-avatar"] { display: none !important; }
+
+.wg-cover-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 14px;
+  background: #16161a;
+  border-bottom: 1px solid #333338;
+  color: #e6edf3;
+}
+.wg-cover-title {
+  font: 600 13px/1 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  letter-spacing: .2px;
+}
+.wg-cover-close {
+  padding: 7px 18px;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  background: #26262b;
+  color: #e6edf3;
+  font: 500 12px/1 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  cursor: pointer;
+  transition: background .14s ease;
+}
+.wg-cover-close:hover { background: #34343a; }
+
+.wg-cover-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #1e1e22;
+}
+
+/* ============ 公众号编辑页 · 右侧豆包侧窗（封面下方那个「豆包」按钮） ============ */
+.wg-fab-doubao {
+  background: #2563eb;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, .32);
+}
+.wg-fab-doubao:hover { background: #1d4ed8; }
+
+.wg-db {
+  position: fixed;
+  right: 22px;
+  /* 贴在悬浮按钮组（封面 / 豆包 / 编辑台 / 安全台）上方，不挡住它们 */
+  bottom: 250px;
+  z-index: 2147483646;
+  display: flex;
+  flex-direction: column;
+  width: 420px;
+  max-width: calc(100vw - 44px);
+  height: 68vh;
+  max-height: 620px;
+  min-height: 320px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, .22);
+  font: 13px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.wg-db[hidden] { display: none !important; }
+
+.wg-db-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 8px 0 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e8edf3;
+  user-select: none;
+}
+.wg-db-head b { font-size: 13px; color: #0f172a; letter-spacing: .3px; }
+.wg-db-sub {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+.wg-db-btn,
+.wg-db-close {
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #64748b;
+  font: 500 15px/1 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  cursor: pointer;
+}
+.wg-db-btn:hover,
+.wg-db-close:hover { background: #eef2f7; color: #0f172a; }
+
+.wg-db-frame {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+}

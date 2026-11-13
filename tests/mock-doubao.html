@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>mock 豆包（测试用）</title></head>
+<body>
+  <!-- 模拟豆包页：只保留一个输入框，用于验证工作台侧窗的 postMessage 推送协议 -->
+  <div id="app" style="padding:20px;">
+    <textarea id="chat" placeholder="输入你的问题" style="width:600px;height:120px;"></textarea>
+  </div>
+  <script>
+    window.__log = { ping: 0, fills: [] };
+
+    window.addEventListener('message', function (e) {
+      var d = e.data;
+      if (!d || d.__wgDoubao !== 'REQ') return;
+
+      function reply(p) {
+        try {
+          e.source.postMessage(Object.assign({
+            __wgDoubao: 'RES', token: d.token, reqId: d.reqId,
+          }, p), '*');
+        } catch (err) { /* ignore */ }
+      }
+
+      if (d.op === 'PING') {
+        window.__log.ping++;
+        reply({ ok: true, ready: true });
+        return;
+      }
+      if (d.op === 'FILL') {
+        window.__log.fills.push({ prompt: d.prompt, send: d.send });
+        document.getElementById('chat').value = d.prompt;
+        reply({ ok: true, mode: 'paste', sent: d.send !== false });
+      }
+    });
+  </script>
+</body>
+</html>
